@@ -28,15 +28,18 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        // IMPORTANT: point this to the latest backend deployment that serves /state, /reset, /step.
+        private const val BACKEND_BASE_URL = "https://automind-rl.onrender.com/"
+    }
 
     // Simple manual DI for the hackathon
     private val moshi = Moshi.Builder()
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    // Replace with Render backend URL
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://automind-rl.onrender.com/")
+        .baseUrl(BACKEND_BASE_URL)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
 

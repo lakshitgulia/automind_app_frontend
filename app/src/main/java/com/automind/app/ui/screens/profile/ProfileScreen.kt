@@ -37,6 +37,7 @@ fun ProfileScreen(
     onLogout: () -> Unit
 ) {
     val isConnected by repository.isConnected.collectAsState()
+    val uiState by repository.uiState.collectAsState()
     val userName = userPreferences.getUserName()
     val userEmail = userPreferences.getUserEmail()
     var vehicles by remember { mutableStateOf(vehiclePreferences.getVehicles()) }
@@ -127,10 +128,25 @@ fun ProfileScreen(
             }
 
             items(vehicles) { vehicle ->
+                val isLiveVehicle = vehicle.licensePlate == uiState.carId
+                val shownFuelLevel = if (isLiveVehicle && uiState.fuelLevel > 0.0) uiState.fuelLevel else vehicle.fuelLevel
+                val shownDistance = if (isLiveVehicle && uiState.distanceDriven > 0.0) uiState.distanceDriven else vehicle.distanceDriven
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            repository.setActiveCarId(vehicle.licensePlate)
+                            vehiclePreferences.setPrimaryVehicle(vehicle.id)
+                            vehicles = vehiclePreferences.getVehicles()
+                            coroutineScope.launch {
+                                repository.resetSession(vehicle.licensePlate)
+                            }
+                        }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -193,7 +209,7 @@ fun ProfileScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(verticalAlignment = Alignment.Bottom) {
                                         Text(
-                                            "${vehicle.fuelLevel.toInt()}%",
+                                            "${shownFuelLevel.toInt()}%",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = TextPrimary,
                                             fontWeight = FontWeight.Bold
@@ -201,7 +217,7 @@ fun ProfileScreen(
                                     }
                                     Spacer(modifier = Modifier.height(6.dp))
                                     LinearProgressIndicator(
-                                        progress = (vehicle.fuelLevel / 100f).toFloat(),
+                                        progress = (shownFuelLevel / 100f).toFloat(),
                                         modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                                         color = AccentCyan,
                                         trackColor = DarkSurface
@@ -217,7 +233,7 @@ fun ProfileScreen(
                                     Text("DIST. DRIVEN", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        "%,.0f km".format(vehicle.distanceDriven),
+                                        "%,.0f km".format(shownDistance),
                                         style = MaterialTheme.typography.titleMedium,
                                         color = TextPrimary,
                                         fontWeight = FontWeight.Bold

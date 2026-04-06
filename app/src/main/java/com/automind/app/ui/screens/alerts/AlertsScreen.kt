@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -21,12 +22,14 @@ import com.automind.app.data.model.AlertPriority
 import com.automind.app.data.repository.VehicleRepository
 import com.automind.app.ui.components.*
 import com.automind.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertsScreen(repository: VehicleRepository) {
     val alerts by repository.alerts.collectAsState()
     val uiState by repository.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     val criticalAlerts = alerts.filter { it.priority == AlertPriority.CRITICAL }
     val warningAlerts = alerts.filter { it.priority == AlertPriority.WARNING }
@@ -226,27 +229,40 @@ fun AlertsScreen(repository: VehicleRepository) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        StatusChip(status = "SERVICE RECOMMENDED", color = StatusGreen)
+                        StatusChip(
+                            status = if (uiState.serviceBookingStatus != null) "SERVICE SCHEDULED" else if (uiState.serviceDueNow) "SERVICE DUE" else "SERVICE RECOMMENDED",
+                            color = if (uiState.serviceBookingStatus != null) AccentCyan else StatusGreen
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "30,000 Mile Tune-Up",
+                            if (uiState.serviceBookingStatus != null) "Service Booking Active" else "Maintenance Planning",
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Your vehicle is due for its regular interval service. This includes spark plug replacement and fluid flush.",
+                            if (uiState.serviceBookingStatus != null) "A service slot has been reserved for this vehicle based on current diagnostics."
+                            else if (uiState.serviceDueNow) "Backend diagnostics say this vehicle is due for service soon."
+                            else "Track maintenance windows proactively based on live diagnostics and health degradation.",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = {},
+                            onClick = {
+                                coroutineScope.launch {
+                                    repository.executeAiCycle(
+                                        actionType = "request_service",
+                                        value = 1.0,
+                                        reason = "User requested service from alerts screen"
+                                    )
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = DarkBackground),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text("SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text(if (uiState.serviceBookingStatus != null) "SCHEDULED" else "SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
                         }

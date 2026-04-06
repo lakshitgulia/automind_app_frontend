@@ -188,7 +188,7 @@ fun HomeScreen(
                                         color = TextSecondary
                                     )
                                     Text(
-                                        text = uiState.driveMode.uppercase(),
+                                        text = uiState.driveModeDisplay.uppercase(),
                                         style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp),
                                         color = TextPrimary,
                                         fontWeight = FontWeight.Bold
@@ -201,7 +201,7 @@ fun HomeScreen(
                                         color = TextSecondary
                                     )
                                     Text(
-                                        text = "${uiState.forwardDistance.toInt()} km",
+                                        text = "${uiState.rangeKm} km",
                                         style = MaterialTheme.typography.titleLarge.copy(fontSize = 28.sp),
                                         color = TextPrimary,
                                         fontWeight = FontWeight.Bold

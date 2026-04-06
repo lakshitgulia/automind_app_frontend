@@ -29,7 +29,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
     val uiState by repository.uiState.collectAsState()
     val hasVehicle = vehiclePreferences.hasVehicles()
 
-    val healthScore = ((uiState.safetyScore + uiState.efficiencyScore + uiState.diagnosticConfidence) / 3.0 * 100).toInt()
+    val healthScore = uiState.healthScore
     val statusLabel = when {
         healthScore > 80 -> "ALL SYSTEMS NOMINAL"
         healthScore > 50 -> "⚠ ATTENTION NEEDED"
@@ -179,7 +179,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                     ) {
                         LargeMetricCard(
                             title = "Gear",
-                            value = "D${uiState.gear} Auto",
+                            value = uiState.gearDisplay,
                             icon = Icons.Default.SettingsInputComponent,
                             modifier = Modifier.weight(1f)
                         )
@@ -247,8 +247,11 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                             icon = Icons.Default.LocalFireDepartment,
                             title = "Engine Performance",
                             subtitle = "TEMP: ${uiState.engineTemp.toInt()}°C",
-                            status = if (uiState.engineHeatAlert) "WARNING" else "NORMAL",
-                            statusColor = if (uiState.engineHeatAlert) StatusRed else StatusGreen
+                            status = uiState.engineStatus,
+                            statusColor = when (uiState.engineStatus.uppercase()) {
+                                "CRITICAL", "WARNING", "ATTENTION" -> StatusRed
+                                else -> StatusGreen
+                            }
                         )
                         DiagnosticRow(
                             icon = Icons.Default.WaterDrop,

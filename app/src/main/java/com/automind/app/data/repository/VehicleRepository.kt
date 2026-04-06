@@ -45,6 +45,8 @@ class VehicleRepository(
 
     fun getActiveCarId(): String = _activeCarId
 
+    fun currentState(): VehicleStateSummary = _uiState.value
+
     suspend fun fetchCurrentState() {
         try {
             val response = apiService.getState(System.currentTimeMillis(), _activeCarId)
@@ -109,39 +111,89 @@ class VehicleRepository(
         val obs = response.observation
         val met = response.metrics
         val inf = response.info
+        val dashboard = response.dashboard
+        val quick = dashboard?.quickTelemetry ?: response.quickTelemetry
+        val trip = dashboard?.trip ?: response.trip
+        val health = dashboard?.health ?: response.health
+        val safety = dashboard?.safety
+        val maintenance = dashboard?.maintenance
+        val identity = dashboard?.vehicle ?: response.vehicle
 
         val current = _uiState.value
         val summary = current.copy(
-            speed = obs?.speed ?: current.speed,
-            engineTemp = obs?.engineTemp ?: current.engineTemp,
+            carId = identity?.carId ?: _activeCarId,
+            vehicleDisplayName = identity?.name ?: current.vehicleDisplayName,
+            vin = identity?.vin ?: current.vin,
+            speed = quick?.speedKmph ?: obs?.speed ?: current.speed,
+            engineTemp = quick?.engineTempC ?: obs?.engineTemp ?: current.engineTemp,
             rpm = obs?.rpm ?: current.rpm,
             throttle = obs?.throttle ?: current.throttle,
             gear = obs?.gear ?: current.gear,
-            forwardDistance = obs?.distanceToObstacle ?: current.forwardDistance,
+            gearDisplay = trip?.gearDisplay ?: (obs?.gear?.let { "D${it} Auto" } ?: current.gearDisplay),
+            forwardDistance = safety?.distanceToObstacleM ?: obs?.distanceToObstacle ?: current.forwardDistance,
+            rangeKm = trip?.rangeKm ?: current.rangeKm,
             roadCondition = obs?.roadCondition ?: current.roadCondition,
             oilHealth = obs?.oilLevel ?: current.oilHealth,
-            batteryHealth = obs?.batteryHealth ?: current.batteryHealth,
+            batteryHealth = health?.batteryHealth?.toDouble() ?: quick?.batteryPct?.toDouble() ?: obs?.batteryHealth ?: current.batteryHealth,
             engineLoad = obs?.engineLoad ?: current.engineLoad,
-            driveMode = obs?.driveMode ?: current.driveMode,
+            driveMode = trip?.driveMode ?: obs?.driveMode ?: current.driveMode,
+            driveModeDisplay = trip?.driveModeDisplay ?: obs?.driveMode ?: current.driveModeDisplay,
             brakeSystemStatus = obs?.failures?.brakeFailure ?: current.brakeSystemStatus,
             sensorSystemStatus = obs?.failures?.sensorFailure ?: current.sensorSystemStatus,
-            engineHeatAlert = obs?.failures?.engineOverheating ?: current.engineHeatAlert,
+            engineHeatAlert = (health?.engineStatus == "CRITICAL" || health?.engineStatus == "ATTENTION")
+                || obs?.failures?.engineOverheating == true
+                || (quick?.engineTempC ?: obs?.engineTemp ?: 0.0) >= 105.0,
             oilWarning = obs?.failures?.lowOil ?: current.oilWarning,
             batteryAlert = obs?.failures?.batteryIssue ?: current.batteryAlert,
-            safetyScore = met?.safetyScore ?: current.safetyScore,
+            engineStatus = health?.engineStatus ?: current.engineStatus,
+            safetyScore = (safety?.drivingSafetyScore?.toDouble()?.div(100.0)) ?: met?.safetyScore ?: current.safetyScore,
             efficiencyScore = met?.efficiencyScore ?: current.efficiencyScore,
             diagnosticConfidence = met?.diagnosisScore ?: current.diagnosticConfidence,
             decisionStability = met?.sequenceScore ?: current.decisionStability,
-            collisionRisk = inf?.collisionRisk ?: current.collisionRisk,
+            healthScore = health?.overallScore ?: inf?.healthScore ?: current.healthScore,
+            collisionRisk = (safety?.collisionRiskPct?.toDouble()?.div(100.0)) ?: inf?.collisionRisk ?: current.collisionRisk,
             overrideDetected = inf?.overrideActive ?: current.overrideDetected,
-            vehicleStatus = inf?.outcome ?: current.vehicleStatus
+            vehicleStatus = health?.status ?: inf?.outcome ?: current.vehicleStatus,
+            fuelLevel = trip?.fuelLevelPct ?: current.fuelLevel,
+            distanceDriven = trip?.odometerKm ?: current.distanceDriven,
+            serviceDueNow = maintenance?.serviceDueNow ?: current.serviceDueNow,
+            serviceBookingStatus = maintenance?.serviceBooking?.status ?: inf?.serviceBooking?.status ?: current.serviceBookingStatus
         )
 
         _uiState.value = summary
-        generateAlertsAndRecommendations(summary)
+        generateAlertsAndRecommendations(summary, dashboard?.activeAlerts ?: response.activeAlerts)
     }
 
-    private fun generateAlertsAndRecommendations(state: VehicleStateSummary) {
+    private fun generateAlertsAndRecommendations(state: VehicleStateSummary, backendAlerts: List<BackendAlert>? = null) {
+        if (!backendAlerts.isNullOrEmpty()) {
+            _alerts.value = backendAlerts.map { alert ->
+                AlertItem(
+                    id = UUID.randomUUID().toString(),
+                    title = alert.title ?: "Vehicle Alert",
+                    message = alert.message ?: "",
+                    priority = when ((alert.severity ?: "").uppercase()) {
+                        "CRITICAL" -> AlertPriority.CRITICAL
+                        "WARN", "WARNING" -> AlertPriority.WARNING
+                        "INFO" -> AlertPriority.INFO
+                        else -> AlertPriority.SAFETY
+                    }
+                )
+            }
+
+            val topAlert = backendAlerts.first()
+            _recommendation.value = RecommendationItem(
+                message = topAlert.message ?: "Vehicle health update available.",
+                actionText = when {
+                    state.serviceBookingStatus != null -> "SERVICE SCHEDULED"
+                    state.serviceDueNow -> "Schedule Service"
+                    (topAlert.code ?: "").contains("COLLISION", ignoreCase = true) -> "Slow Down"
+                    else -> "Inspect Vehicle"
+                },
+                isCritical = (topAlert.severity ?: "").equals("CRITICAL", ignoreCase = true)
+            )
+            return
+        }
+
         val newAlerts = mutableListOf<AlertItem>()
         var recMsg = "Vehicle reading steady. Continue driving safely."
         var action: String? = null

@@ -18,11 +18,23 @@ class VehiclePreferences(context: Context) {
 
     fun saveVehicle(vehicle: VehicleInfo) {
         val vehicles = getVehicles().toMutableList()
+        val hash = vehicle.licensePlate.uppercase().hashCode().toLong().let { kotlin.math.abs(it) }
+        val seededFuel = 35.0 + (hash % 55).toDouble()
+        val seededDistance = 8000.0 + (hash % 145000).toDouble()
         // If this is the first vehicle, make it primary
         val vehicleToSave = if (vehicles.isEmpty()) {
-            vehicle.copy(isPrimary = true, id = UUID.randomUUID().toString())
+            vehicle.copy(
+                isPrimary = true,
+                id = UUID.randomUUID().toString(),
+                fuelLevel = seededFuel,
+                distanceDriven = seededDistance
+            )
         } else {
-            vehicle.copy(id = UUID.randomUUID().toString())
+            vehicle.copy(
+                id = UUID.randomUUID().toString(),
+                fuelLevel = seededFuel,
+                distanceDriven = seededDistance
+            )
         }
         vehicles.add(vehicleToSave)
         saveVehicleList(vehicles)
