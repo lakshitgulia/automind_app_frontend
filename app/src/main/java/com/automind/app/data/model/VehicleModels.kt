@@ -118,18 +118,34 @@ data class MaintenanceSummary(
 @JsonClass(generateAdapter = true)
 data class ServicePayload(
     @Json(name = "name") val name: String? = null,
+    @Json(name = "address") val address: String? = null,
+    @Json(name = "phone") val phone: String? = null,
+    @Json(name = "lat") val lat: Double? = null,
+    @Json(name = "lon") val lon: Double? = null,
     @Json(name = "distance_km") val distanceKm: Double? = null,
     @Json(name = "eta_minutes") val etaMinutes: Int? = null,
-    @Json(name = "remaining_km") val remainingKm: Int? = null
+    @Json(name = "remaining_km") val remainingKm: Int? = null,
+    @Json(name = "vehicle_lat") val vehicleLat: Double? = null,
+    @Json(name = "vehicle_lon") val vehicleLon: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class ServiceBooking(
     @Json(name = "status") val status: String? = null,
+    @Json(name = "booking_id") val bookingId: String? = null,
     @Json(name = "center_name") val centerName: String? = null,
+    @Json(name = "center_address") val centerAddress: String? = null,
+    @Json(name = "center_phone") val centerPhone: String? = null,
     @Json(name = "distance_km") val distanceKm: Double? = null,
     @Json(name = "eta_minutes") val etaMinutes: Int? = null,
-    @Json(name = "urgency") val urgency: String? = null
+    @Json(name = "urgency") val urgency: String? = null,
+    @Json(name = "scheduled_at") val scheduledAt: String? = null,
+    @Json(name = "scheduled_date") val scheduledDate: String? = null,
+    @Json(name = "scheduled_time") val scheduledTime: String? = null,
+    @Json(name = "service_center_lat") val serviceCenterLat: Double? = null,
+    @Json(name = "service_center_lon") val serviceCenterLon: Double? = null,
+    @Json(name = "vehicle_lat") val vehicleLat: Double? = null,
+    @Json(name = "vehicle_lon") val vehicleLon: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -154,6 +170,8 @@ data class Observation(
     @Json(name = "battery_health") val batteryHealth: Double? = null,
     @Json(name = "engine_load") val engineLoad: Double? = null,
     @Json(name = "drive_mode") val driveMode: String? = null,
+    @Json(name = "latitude") val latitude: Double? = null,
+    @Json(name = "longitude") val longitude: Double? = null,
     @Json(name = "failures") val failures: FailureFlags? = null,
     @Json(name = "history") val history: List<HistoryItem>? = null
 )
@@ -251,7 +269,18 @@ data class VehicleStateSummary(
     val predictedBrakeRisk: Double = 0.0,
     val predictedCollisionRisk: Double = 0.0,
     val currentFaultPhase: String = "steady state",
-    val nextLikelyRiskShift: String = "none"
+    val nextLikelyRiskShift: String = "none",
+    val serviceCenterName: String = "",
+    val serviceCenterAddress: String = "",
+    val serviceCenterPhone: String = "",
+    val serviceDistanceKm: Double = 0.0,
+    val serviceEtaMinutes: Int = 0,
+    val serviceScheduledDate: String = "",
+    val serviceScheduledTime: String = "",
+    val serviceBookingId: String = "",
+    val serviceUrgency: String = "",
+    val vehicleLat: Double = 0.0,
+    val vehicleLon: Double = 0.0
 )
 
 enum class AlertPriority { CRITICAL, WARNING, SAFETY, INFO }

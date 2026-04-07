@@ -248,6 +248,70 @@ fun AlertsScreen(repository: VehicleRepository) {
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
+                        if (uiState.serviceBookingStatus != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Center: ${uiState.serviceCenterName}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (uiState.serviceCenterAddress.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = uiState.serviceCenterAddress,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Date: ${uiState.serviceScheduledDate.ifBlank { "Pending" }}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AccentCyan
+                            )
+                            Text(
+                                text = "Time: ${uiState.serviceScheduledTime.ifBlank { "Pending" }}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AccentCyan
+                            )
+                            Text(
+                                text = "ETA: ${uiState.serviceEtaMinutes} min • Distance: ${"%.1f".format(uiState.serviceDistanceKm)} km",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                            if (uiState.serviceBookingId.isNotBlank()) {
+                                Text(
+                                    text = "Booking ID: ${uiState.serviceBookingId}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                            if (uiState.serviceCenterPhone.isNotBlank()) {
+                                Text(
+                                    text = "Contact: ${uiState.serviceCenterPhone}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                            Text(
+                                text = "Live vehicle location: ${"%.5f".format(uiState.vehicleLat)}, ${"%.5f".format(uiState.vehicleLon)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        } else if (uiState.serviceCenterName.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Nearest center: ${uiState.serviceCenterName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AccentCyan
+                            )
+                            Text(
+                                text = "ETA ${uiState.serviceEtaMinutes} min • ${"%.1f".format(uiState.serviceDistanceKm)} km away",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = {

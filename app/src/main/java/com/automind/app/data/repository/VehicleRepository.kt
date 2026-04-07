@@ -136,6 +136,8 @@ class VehicleRepository(
         val safety = dashboard?.safety
         val predictions = dashboard?.mlPredictions ?: response.mlPredictions ?: inf?.mlPredictions
         val maintenance = dashboard?.maintenance
+        val booking = maintenance?.serviceBooking ?: inf?.serviceBooking
+        val recommendation = maintenance?.serviceRecommended
         val identity = dashboard?.vehicle ?: response.vehicle
 
         val current = _uiState.value
@@ -176,7 +178,7 @@ class VehicleRepository(
             fuelLevel = trip?.fuelLevelPct ?: current.fuelLevel,
             distanceDriven = trip?.odometerKm ?: current.distanceDriven,
             serviceDueNow = maintenance?.serviceDueNow ?: current.serviceDueNow,
-            serviceBookingStatus = maintenance?.serviceBooking?.status ?: inf?.serviceBooking?.status ?: current.serviceBookingStatus,
+            serviceBookingStatus = booking?.status ?: current.serviceBookingStatus,
             predictedFailure = (health?.predictedFailure ?: predictions?.primaryFailure ?: current.predictedFailure).replace("_", " "),
             predictedFailureRiskPct = health?.predictedFailureRiskPct ?: current.predictedFailureRiskPct,
             predictionConfidence = predictions?.confidence ?: current.predictionConfidence,
@@ -188,7 +190,18 @@ class VehicleRepository(
             predictedBrakeRisk = predictions?.failureRisks?.brakeFailure ?: current.predictedBrakeRisk,
             predictedCollisionRisk = predictions?.failureRisks?.collision ?: current.predictedCollisionRisk,
             currentFaultPhase = prettyRiskLabel(inf?.faultPhase ?: current.currentFaultPhase),
-            nextLikelyRiskShift = nextLikelyRiskShift(predictions)
+            nextLikelyRiskShift = nextLikelyRiskShift(predictions),
+            serviceCenterName = booking?.centerName ?: recommendation?.name ?: current.serviceCenterName,
+            serviceCenterAddress = booking?.centerAddress ?: recommendation?.address ?: current.serviceCenterAddress,
+            serviceCenterPhone = booking?.centerPhone ?: recommendation?.phone ?: current.serviceCenterPhone,
+            serviceDistanceKm = booking?.distanceKm ?: recommendation?.distanceKm ?: current.serviceDistanceKm,
+            serviceEtaMinutes = booking?.etaMinutes ?: recommendation?.etaMinutes ?: current.serviceEtaMinutes,
+            serviceScheduledDate = booking?.scheduledDate ?: current.serviceScheduledDate,
+            serviceScheduledTime = booking?.scheduledTime ?: current.serviceScheduledTime,
+            serviceBookingId = booking?.bookingId ?: current.serviceBookingId,
+            serviceUrgency = booking?.urgency ?: current.serviceUrgency,
+            vehicleLat = booking?.vehicleLat ?: recommendation?.vehicleLat ?: obs?.latitude ?: current.vehicleLat,
+            vehicleLon = booking?.vehicleLon ?: recommendation?.vehicleLon ?: obs?.longitude ?: current.vehicleLon
         )
 
         _uiState.value = summary
