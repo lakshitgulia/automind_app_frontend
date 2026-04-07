@@ -107,6 +107,24 @@ class VehicleRepository(
         useMockFallback = enabled
     }
 
+    private fun prettyRiskLabel(raw: String): String = raw.replace("_", " ")
+
+    private fun nextLikelyRiskShift(predictions: MlPredictions?): String {
+        val risks = listOfNotNull(
+            predictions?.failureRisks?.engineOverheating?.let { "engine_overheating" to it },
+            predictions?.failureRisks?.lowOil?.let { "low_oil" to it },
+            predictions?.failureRisks?.batteryIssue?.let { "battery_issue" to it },
+            predictions?.failureRisks?.brakeFailure?.let { "brake_failure" to it },
+            predictions?.failureRisks?.collision?.let { "collision" to it },
+        ).sortedByDescending { it.second }
+
+        if (risks.isEmpty()) return "none"
+
+        val dominant = predictions?.primaryFailure
+        val next = risks.firstOrNull { it.first != dominant } ?: risks.first()
+        return prettyRiskLabel(next.first)
+    }
+
     private fun processBackendResponse(response: BackendStateResponse) {
         val obs = response.observation
         val met = response.metrics
@@ -168,7 +186,9 @@ class VehicleRepository(
             predictedOilRisk = predictions?.failureRisks?.lowOil ?: current.predictedOilRisk,
             predictedBatteryRisk = predictions?.failureRisks?.batteryIssue ?: current.predictedBatteryRisk,
             predictedBrakeRisk = predictions?.failureRisks?.brakeFailure ?: current.predictedBrakeRisk,
-            predictedCollisionRisk = predictions?.failureRisks?.collision ?: current.predictedCollisionRisk
+            predictedCollisionRisk = predictions?.failureRisks?.collision ?: current.predictedCollisionRisk,
+            currentFaultPhase = prettyRiskLabel(inf?.faultPhase ?: current.currentFaultPhase),
+            nextLikelyRiskShift = nextLikelyRiskShift(predictions)
         )
 
         _uiState.value = summary

@@ -189,7 +189,8 @@ data class StepInfo(
     @Json(name = "health_score") val healthScore: Int? = null,
     @Json(name = "alerts") val alerts: List<String>? = null,
     @Json(name = "service_booking") val serviceBooking: ServiceBooking? = null,
-    @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null
+    @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,
+    @Json(name = "fault_phase") val faultPhase: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -248,7 +249,9 @@ data class VehicleStateSummary(
     val predictedOilRisk: Double = 0.0,
     val predictedBatteryRisk: Double = 0.0,
     val predictedBrakeRisk: Double = 0.0,
-    val predictedCollisionRisk: Double = 0.0
+    val predictedCollisionRisk: Double = 0.0,
+    val currentFaultPhase: String = "steady state",
+    val nextLikelyRiskShift: String = "none"
 )
 
 enum class AlertPriority { CRITICAL, WARNING, SAFETY, INFO }

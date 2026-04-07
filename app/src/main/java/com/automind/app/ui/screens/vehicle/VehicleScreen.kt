@@ -150,6 +150,16 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
+                            Text(
+                                text = "Current phase: ${uiState.currentFaultPhase.uppercase()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AccentCyan
+                            )
+                            Text(
+                                text = "Next likely risk shift: ${uiState.nextLikelyRiskShift.uppercase()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
                         }
                     }
                 }

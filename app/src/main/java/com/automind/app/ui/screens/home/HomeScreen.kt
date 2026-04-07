@@ -285,6 +285,12 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
+                                text = "Current phase: ${uiState.currentFaultPhase.uppercase()} | Next shift: ${uiState.nextLikelyRiskShift.uppercase()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
                                 text = "AUTOMIND AI INSIGHT • JUST NOW",
                                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
                                 color = TextSecondary.copy(alpha = 0.6f)
