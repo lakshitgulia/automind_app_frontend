@@ -253,7 +253,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Advanced telemetry signals for health, safety, and predictive maintenance are being processed in real-time.",
+                                    "Live telemetry is flowing through the predictive maintenance model to forecast failures before breakdown.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
@@ -276,6 +276,12 @@ fun HomeScreen(
                                 text = "\"${recommendation.message}\"",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
                                 color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Predicted failure: ${uiState.predictedFailure.uppercase()} | Risk ${uiState.predictedFailureRiskPct}% | Horizon ${uiState.failureHorizonKm} km",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AccentCyan
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -336,6 +342,7 @@ fun HomeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         AgentRow(name = "Diagnosis", status = "Active", icon = Icons.Default.Build, statusColor = StatusGreen)
                         AgentRow(name = "Safety", status = "Analyzing", icon = Icons.Default.Shield, statusColor = AccentCyan)
+                        AgentRow(name = "Predictive ML", status = "Forecasting", icon = Icons.Default.AutoGraph, statusColor = AccentCyan)
                         AgentRow(name = "Service", status = "Ready", icon = Icons.Default.Settings, statusColor = TextSecondary)
                     }
                 }

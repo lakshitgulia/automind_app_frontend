@@ -10,6 +10,7 @@ data class BackendStateResponse(
     @Json(name = "quick_telemetry") val quickTelemetry: QuickTelemetry? = null,
     @Json(name = "trip") val trip: TripSummary? = null,
     @Json(name = "health") val health: HealthSummary? = null,
+    @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,
     @Json(name = "active_alerts") val activeAlerts: List<BackendAlert>? = null,
     @Json(name = "observation") val observation: Observation? = null,
     @Json(name = "metrics") val metrics: Metrics? = null,
@@ -34,6 +35,7 @@ data class DashboardPayload(
     @Json(name = "trip") val trip: TripSummary? = null,
     @Json(name = "health") val health: HealthSummary? = null,
     @Json(name = "safety") val safety: SafetySummary? = null,
+    @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,
     @Json(name = "maintenance") val maintenance: MaintenanceSummary? = null,
     @Json(name = "active_alerts") val activeAlerts: List<BackendAlert>? = null
 )
@@ -64,7 +66,37 @@ data class HealthSummary(
     @Json(name = "battery_health") val batteryHealth: Int? = null,
     @Json(name = "safety_health") val safetyHealth: Int? = null,
     @Json(name = "maintenance_health") val maintenanceHealth: Int? = null,
-    @Json(name = "engine_status") val engineStatus: String? = null
+    @Json(name = "engine_status") val engineStatus: String? = null,
+    @Json(name = "predicted_failure") val predictedFailure: String? = null,
+    @Json(name = "predicted_failure_risk_pct") val predictedFailureRiskPct: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class MlPredictions(
+    @Json(name = "model_name") val modelName: String? = null,
+    @Json(name = "confidence") val confidence: Double? = null,
+    @Json(name = "primary_failure") val primaryFailure: String? = null,
+    @Json(name = "failure_horizon_km") val failureHorizonKm: Int? = null,
+    @Json(name = "failure_risks") val failureRisks: FailureRiskMap? = null,
+    @Json(name = "health") val health: PredictedHealth? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class FailureRiskMap(
+    @Json(name = "engine_overheating") val engineOverheating: Double? = null,
+    @Json(name = "low_oil") val lowOil: Double? = null,
+    @Json(name = "battery_issue") val batteryIssue: Double? = null,
+    @Json(name = "brake_failure") val brakeFailure: Double? = null,
+    @Json(name = "collision") val collision: Double? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class PredictedHealth(
+    @Json(name = "overall") val overall: Int? = null,
+    @Json(name = "engine") val engine: Int? = null,
+    @Json(name = "battery") val battery: Int? = null,
+    @Json(name = "safety") val safety: Int? = null,
+    @Json(name = "maintenance") val maintenance: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -156,7 +188,8 @@ data class StepInfo(
     @Json(name = "override_active") val overrideActive: Boolean? = null,
     @Json(name = "health_score") val healthScore: Int? = null,
     @Json(name = "alerts") val alerts: List<String>? = null,
-    @Json(name = "service_booking") val serviceBooking: ServiceBooking? = null
+    @Json(name = "service_booking") val serviceBooking: ServiceBooking? = null,
+    @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -205,7 +238,17 @@ data class VehicleStateSummary(
     val fuelLevel: Double = 0.0,
     val distanceDriven: Double = 0.0,
     val serviceDueNow: Boolean = false,
-    val serviceBookingStatus: String? = null
+    val serviceBookingStatus: String? = null,
+    val predictedFailure: String = "stable",
+    val predictedFailureRiskPct: Int = 0,
+    val predictionConfidence: Double = 0.0,
+    val failureHorizonKm: Int = 0,
+    val predictiveModelName: String = "",
+    val predictedEngineRisk: Double = 0.0,
+    val predictedOilRisk: Double = 0.0,
+    val predictedBatteryRisk: Double = 0.0,
+    val predictedBrakeRisk: Double = 0.0,
+    val predictedCollisionRisk: Double = 0.0
 )
 
 enum class AlertPriority { CRITICAL, WARNING, SAFETY, INFO }

@@ -124,6 +124,34 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
                         color = statusColor
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "PREDICTIVE MAINTENANCE MODEL",
+                                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = uiState.predictedFailure.uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Risk ${uiState.predictedFailureRiskPct}% • Confidence ${(uiState.predictionConfidence * 100).toInt()}% • Horizon ${uiState.failureHorizonKm} km",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
                 }
 
                 // Car Visualization Area
@@ -208,6 +236,24 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                     }
                 }
 
+                item {
+                    SectionHeader("Failure Risk Forecast")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            ProgressBarItem("Engine Overheat Risk", uiState.predictedEngineRisk.toFloat().coerceIn(0f, 1f), StatusRed)
+                            ProgressBarItem("Oil System Risk", uiState.predictedOilRisk.toFloat().coerceIn(0f, 1f), StatusOrange)
+                            ProgressBarItem("Battery Failure Risk", uiState.predictedBatteryRisk.toFloat().coerceIn(0f, 1f), AccentCyan)
+                            ProgressBarItem("Brake Degradation Risk", uiState.predictedBrakeRisk.toFloat().coerceIn(0f, 1f), StatusOrange)
+                            ProgressBarItem("Collision Exposure", uiState.predictedCollisionRisk.toFloat().coerceIn(0f, 1f), StatusRed)
+                        }
+                    }
+                }
+
                 // AI Quote
                 item {
                     Card(
@@ -216,7 +262,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "\"Current telemetry suggests balanced driving profile. Maintain distance to improve safety score.\"",
+                            text = "\"Predictive model ${uiState.predictiveModelName.ifBlank { "automind_predictive_v1" }} is monitoring failure trends ahead of breakdown.\"",
                             style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
                             color = TextSecondary,
                             modifier = Modifier.padding(16.dp)

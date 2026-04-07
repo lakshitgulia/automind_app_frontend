@@ -116,6 +116,7 @@ class VehicleRepository(
         val trip = dashboard?.trip ?: response.trip
         val health = dashboard?.health ?: response.health
         val safety = dashboard?.safety
+        val predictions = dashboard?.mlPredictions ?: response.mlPredictions ?: inf?.mlPredictions
         val maintenance = dashboard?.maintenance
         val identity = dashboard?.vehicle ?: response.vehicle
 
@@ -157,7 +158,17 @@ class VehicleRepository(
             fuelLevel = trip?.fuelLevelPct ?: current.fuelLevel,
             distanceDriven = trip?.odometerKm ?: current.distanceDriven,
             serviceDueNow = maintenance?.serviceDueNow ?: current.serviceDueNow,
-            serviceBookingStatus = maintenance?.serviceBooking?.status ?: inf?.serviceBooking?.status ?: current.serviceBookingStatus
+            serviceBookingStatus = maintenance?.serviceBooking?.status ?: inf?.serviceBooking?.status ?: current.serviceBookingStatus,
+            predictedFailure = (health?.predictedFailure ?: predictions?.primaryFailure ?: current.predictedFailure).replace("_", " "),
+            predictedFailureRiskPct = health?.predictedFailureRiskPct ?: current.predictedFailureRiskPct,
+            predictionConfidence = predictions?.confidence ?: current.predictionConfidence,
+            failureHorizonKm = predictions?.failureHorizonKm ?: current.failureHorizonKm,
+            predictiveModelName = predictions?.modelName ?: current.predictiveModelName,
+            predictedEngineRisk = predictions?.failureRisks?.engineOverheating ?: current.predictedEngineRisk,
+            predictedOilRisk = predictions?.failureRisks?.lowOil ?: current.predictedOilRisk,
+            predictedBatteryRisk = predictions?.failureRisks?.batteryIssue ?: current.predictedBatteryRisk,
+            predictedBrakeRisk = predictions?.failureRisks?.brakeFailure ?: current.predictedBrakeRisk,
+            predictedCollisionRisk = predictions?.failureRisks?.collision ?: current.predictedCollisionRisk
         )
 
         _uiState.value = summary
