@@ -1,55 +1,57 @@
 # AutoMind App Frontend
 
-AutoMind is an Android app built with Jetpack Compose for live vehicle monitoring, predictive alerts, service workflows, and account-based local personalization.
+AutoMind is an Android app built with Jetpack Compose for vehicle monitoring, predictive maintenance insights, alert handling, service scheduling flows, and locally stored user and vehicle management.
 
-## What the app does
+## Overview
+
+The app currently includes:
 
 - Local sign up, login, logout, and permanent account deletion
-- Vehicle management with per-account saved vehicles
-- Live dashboard polling from the AutoMind backend
-- Home screen for telemetry, predictions, and AI insight cards
-- Vehicle diagnostics screen for deeper metrics and failure-risk data
-- Alerts screen for smart alerts, maintenance status, and service scheduling
-- Profile screen for account and vehicle management
+- Per-account vehicle storage using on-device persistence
+- Home dashboard with live telemetry, prediction summaries, and AI insight cards
+- Vehicle diagnostics screen with health, telemetry, and risk indicators
+- Alerts screen with maintenance, service booking, reschedule, and cancel flows
+- Profile screen for account details and vehicle management
 
-## Current feature set
+## Current behavior
 
-### Authentication and account flow
+### Authentication and local storage
 
-- Accounts are stored locally on-device using `SharedPreferences`
-- Login and signup work fully on the frontend
-- Delete Account permanently removes:
+- User accounts are stored locally using `SharedPreferences`
+- Login and signup are frontend/local only
+- Account deletion removes:
   - the currently logged-in account
-  - local account credentials/profile data
-  - that account's saved vehicle data
-- After deletion, the user must create the account again to continue
+  - stored account data for that account
+  - stored vehicle data for that account
+- Vehicle data is stored per account bucket, not globally for all users
 
 ### Vehicle monitoring
 
-- Polls backend vehicle state on a repeating interval
-- Displays:
+- The app polls backend state repeatedly while the user is logged in and not on the login screen
+- Polling starts only when the current account has at least one saved vehicle
+- The active vehicle is selected from the locally saved primary vehicle
+- Dashboard and diagnostics UI can display telemetry and prediction data such as:
   - speed
   - engine temperature
   - battery percentage
   - drive mode
   - range
-  - health and prediction insights
-- Gear display has been cleaned to show values like `D1` instead of `D1 Auto`
+  - gear / drive mode display
+  - failure prediction summaries
+  - health and service information
 
-### Alerts and maintenance
+### Alerts and service flows
 
-- Shows critical, warning, and safety alerts
-- Supports service request, reschedule, and cancel flows
-- Displays service center, ETA, booking details, and resolved vehicle location name
-- Scheduled state button now shows `BOOKED`
+- The alerts screen shows warning, safety, info, and critical alert content
+- Service flows support schedule, reschedule, and cancel behavior
+- Service booking UI can show booking state like `BOOKED`
+- Vehicle location labels use Android `Geocoder` when available and fall back to formatted coordinates
 
-### UI updates included
+### UI state
 
-- Cleaner telemetry cards with one-line values
-- Removed extra symbols in AI insight timestamp text
-- Simplified profile badge to only show `VERIFIED`
-- Removed fuel level and distance blocks from the profile vehicle card
-- Removed extra alert action labels like `LOCATE SERVICE` and `IGNORE`
+- Profile shows a `VERIFIED` badge
+- Profile vehicle cards focus on core identity and status information
+- Home includes quick telemetry and AI insight sections
 
 ## Tech stack
 
@@ -59,8 +61,8 @@ AutoMind is an Android app built with Jetpack Compose for live vehicle monitorin
 - Navigation Compose
 - Retrofit
 - Moshi
-- Kotlin Coroutines
 - OkHttp
+- Kotlin Coroutines
 
 ## Project structure
 
@@ -74,43 +76,77 @@ app/src/main/java/com/automind/app/
 ├── ui/
 │   ├── components/
 │   ├── navigation/
-│   └── screens/
+│   ├── screens/
+│   │   ├── alerts/
+│   │   ├── home/
+│   │   ├── login/
+│   │   ├── profile/
+│   │   └── vehicle/
+│   └── theme/
 └── MainActivity.kt
 ```
 
 ## Important files
 
 - `app/src/main/java/com/automind/app/MainActivity.kt`
-  - app entry point, Retrofit setup, polling lifecycle
+  - app entry point, Retrofit setup, backend base URL, and polling lifecycle
 - `app/src/main/java/com/automind/app/data/network/AutoMindApiService.kt`
   - backend API contract
 - `app/src/main/java/com/automind/app/data/repository/VehicleRepository.kt`
-  - maps backend payloads into UI state
+  - backend response mapping, UI state management, alerts, and recommendations
 - `app/src/main/java/com/automind/app/data/local/UserPreferences.kt`
-  - local account storage, login flow, delete-account support
+  - local account storage, login flow, and delete-account support
 - `app/src/main/java/com/automind/app/data/local/VehiclePreferences.kt`
-  - per-account vehicle persistence
+  - per-account vehicle persistence and primary vehicle handling
+- `app/src/main/java/com/automind/app/ui/navigation/NavGraph.kt`
+  - app navigation graph and bottom navigation
 
 ## Backend
 
-The app currently points to:
+The app is currently configured to use:
 
 `https://khushi1811-automind-rl.hf.space/`
 
-Used endpoints include:
+Core endpoints used by the app include:
 
 - `/state`
 - `/reset`
 - `/step`
 
+Additional endpoints defined in the API interface include:
+
+- `/`
+- `/health`
+- `/tasks`
+- `/schema`
+
+## Requirements
+
+To build and run the project successfully, your local environment should have:
+
+- Android Studio with Gradle sync support
+- Android SDK Platform 34
+- Build tools compatible with `compileSdk = 34`
+- Java 17 / Gradle JDK 17-compatible setup
+
+Project build settings currently include:
+
+- `compileSdk = 34`
+- `minSdk = 26`
+- `targetSdk = 34`
+- Kotlin JVM target `17`
+
 ## Running the app
 
 1. Open the project in Android Studio.
-2. Sync Gradle dependencies.
-3. Run the `app` module on an emulator or Android device.
+2. Let Gradle sync finish using the included Gradle wrapper.
+3. Make sure the project uses a Java 17-compatible Gradle JDK.
+4. Ensure an emulator or physical device has working internet access, since live telemetry depends on the configured backend.
+5. Run the `app` module.
 
 ## Notes
 
-- The repo currently contains generated Android/Gradle artifacts in version control.
-- Account management is frontend/local-storage based, not a remote auth system.
-- Reverse geocoding for vehicle coordinates uses Android `Geocoder` and falls back to raw coordinates if resolution is unavailable.
+- Account management is frontend/local-storage based, not remote-auth based
+- Live values depend on backend reachability and emulator/device network health
+- Release signing is only configured when `keystore.properties` is present locally
+- `local.properties`, `keystore.properties`, and keystore files are intentionally local-only
