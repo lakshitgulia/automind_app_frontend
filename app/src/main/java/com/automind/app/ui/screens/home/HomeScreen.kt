@@ -92,7 +92,7 @@ fun HomeScreen(
             }
 
             if (!hasVehicle) {
-                // No Vehicle — Prompt Card
+                // No Vehicle â€” Prompt Card
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DarkSurface),
@@ -284,7 +284,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "AUTOMIND AI INSIGHT • JUST NOW",
+                                text = "AUTOMIND AI INSIGHT â€¢ JUST NOW",
                                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
                                 color = TextSecondary.copy(alpha = 0.6f)
                             )
@@ -350,7 +350,7 @@ fun HomeScreen(
                     // Activate on backend
                     repository.setActiveCarId(vehicle.licensePlate)
                     coroutineScope.launch {
-                        repository.resetSession(vehicle.licensePlate)
+                        repository.resetSession(vehicle.licensePlate, mapOf("vehicle_name" to "${vehicle.make} ${vehicle.model} ${vehicle.year}", "vehicle_maker" to vehicle.make))
                     }
                 }
             )

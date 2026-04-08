@@ -320,8 +320,8 @@ fun AlertsScreen(repository: VehicleRepository) {
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(`r`n                                modifier = Modifier.weight(1f),
                                 onClick = {
                                     coroutineScope.launch {
                                         repository.executeAiCycle(
@@ -334,19 +334,19 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = DarkBackground),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
-                                Text(if (uiState.serviceBookingStatus != null) "SCHEDULED" else "SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Text(if (uiState.serviceBookingStatus != null) "SCHEDULED" else "SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp, maxLines = 1)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
                             if (uiState.serviceBookingStatus != null && uiState.serviceBookingEditable) {
-                                OutlinedButton(
+                                OutlinedButton(`r`n                                    modifier = Modifier.weight(1f),
                                     onClick = { showEditDialog = true },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
                                 ) {
-                                    Text("EDIT", fontWeight = FontWeight.Bold)
+                                    Text("EDIT", fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
-                                OutlinedButton(
+                                OutlinedButton(`r`n                                    modifier = Modifier.weight(1f),
                                     onClick = {
                                         coroutineScope.launch {
                                             repository.executeAiCycle(
@@ -359,7 +359,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed)
                                 ) {
-                                    Text("CANCEL", fontWeight = FontWeight.Bold)
+                                    Text("CANCEL", fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
                             }
                         }

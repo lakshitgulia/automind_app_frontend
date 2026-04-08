@@ -16,12 +16,16 @@ class UserPreferences(context: Context) {
         private const val KEY_ACCOUNTS = "accounts_json"
         private const val KEY_CURRENT_EMAIL = "current_email"
         private const val KEY_LOGGED_IN = "is_logged_in"
+        private const val KEY_NAME = "user_name"
+        private const val KEY_EMAIL = "user_email"
+        private const val KEY_PASSWORD = "user_password"
         private const val MAX_ACCOUNTS = 5
     }
 
     fun saveUser(name: String, email: String, password: String) {
         val normalizedEmail = normalizeEmail(email)
-        val accounts = loadAccounts()
+        val accounts = (loadAccounts() + loadLegacyAccount())
+            .distinctBy { it.optString("email") }
             .filterNot { it.optString("email") == normalizedEmail }
             .toMutableList()
 
@@ -30,6 +34,7 @@ class UserPreferences(context: Context) {
                 put("name", name.trim())
                 put("email", normalizedEmail)
                 put("password_hash", hashPassword(password))
+                put("legacy_password_hash", legacyHash(password))
                 put("last_used", System.currentTimeMillis())
             }
         )
@@ -38,21 +43,32 @@ class UserPreferences(context: Context) {
         prefs.edit()
             .putString(KEY_CURRENT_EMAIL, normalizedEmail)
             .putBoolean(KEY_LOGGED_IN, true)
+            .remove(KEY_NAME)
+            .remove(KEY_EMAIL)
+            .remove(KEY_PASSWORD)
             .apply()
     }
 
     fun login(email: String, password: String): Boolean {
         val normalizedEmail = normalizeEmail(email)
         val passwordHash = hashPassword(password)
-        val accounts = loadAccounts().toMutableList()
+        val legacyPasswordHash = legacyHash(password)
+        val accounts = (loadAccounts() + loadLegacyAccount())
+            .distinctBy { it.optString("email") }
+            .toMutableList()
+
         val index = accounts.indexOfFirst {
-            it.optString("email") == normalizedEmail &&
-                it.optString("password_hash") == passwordHash
+            it.optString("email") == normalizedEmail && (
+                it.optString("password_hash") == passwordHash ||
+                    it.optString("legacy_password_hash") == legacyPasswordHash
+                )
         }
 
         if (index == -1) return false
 
         val account = accounts[index]
+        account.put("password_hash", passwordHash)
+        account.put("legacy_password_hash", legacyPasswordHash)
         account.put("last_used", System.currentTimeMillis())
         accounts[index] = account
         persistAccounts(accounts)
@@ -60,6 +76,9 @@ class UserPreferences(context: Context) {
         prefs.edit()
             .putString(KEY_CURRENT_EMAIL, normalizedEmail)
             .putBoolean(KEY_LOGGED_IN, true)
+            .remove(KEY_NAME)
+            .remove(KEY_EMAIL)
+            .remove(KEY_PASSWORD)
             .apply()
         return true
     }
@@ -85,11 +104,12 @@ class UserPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_LOGGED_IN, false).apply()
     }
 
-    fun hasAccount(): Boolean = loadAccounts().isNotEmpty()
+    fun hasAccount(): Boolean = loadAccounts().isNotEmpty() || loadLegacyAccount() != null
 
     private fun currentAccount(): JSONObject? {
-        val currentEmail = prefs.getString(KEY_CURRENT_EMAIL, null) ?: return null
-        return loadAccounts().firstOrNull { it.optString("email") == currentEmail }
+        val currentEmail = prefs.getString(KEY_CURRENT_EMAIL, null) ?: return loadLegacyAccount()
+        return (loadAccounts() + listOfNotNull(loadLegacyAccount()))
+            .firstOrNull { it.optString("email") == currentEmail }
     }
 
     private fun loadAccounts(): List<JSONObject> {
@@ -99,6 +119,18 @@ class UserPreferences(context: Context) {
             (0 until array.length()).map { index -> array.getJSONObject(index) }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    private fun loadLegacyAccount(): JSONObject? {
+        val email = prefs.getString(KEY_EMAIL, null)?.trim()?.lowercase() ?: return null
+        val name = prefs.getString(KEY_NAME, "") ?: ""
+        val legacyPass = prefs.getString(KEY_PASSWORD, null) ?: return null
+        return JSONObject().apply {
+            put("name", name)
+            put("email", email)
+            put("legacy_password_hash", legacyPass)
+            put("last_used", 0L)
         }
     }
 
@@ -118,4 +150,6 @@ class UserPreferences(context: Context) {
         val bytes = MessageDigest.getInstance("SHA-256").digest(password.toByteArray())
         return bytes.joinToString(separator = "") { "%02x".format(it) }
     }
+
+    private fun legacyHash(password: String): String = password.hashCode().toString()
 }
