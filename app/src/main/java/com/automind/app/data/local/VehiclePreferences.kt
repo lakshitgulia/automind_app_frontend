@@ -12,8 +12,12 @@ class VehiclePreferences(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("automind_vehicle_prefs", Context.MODE_PRIVATE)
 
+    private val userPrefs: SharedPreferences =
+        context.getSharedPreferences("automind_user_prefs", Context.MODE_PRIVATE)
+
     companion object {
-        private const val KEY_VEHICLES = "vehicles_json"
+        private const val USER_EMAIL_KEY = "current_email"
+        private const val KEY_ACCOUNTS = "accounts_json"
     }
 
     fun saveVehicle(vehicle: VehicleInfo) {
@@ -21,7 +25,6 @@ class VehiclePreferences(context: Context) {
         val hash = vehicle.licensePlate.uppercase().hashCode().toLong().let { kotlin.math.abs(it) }
         val seededFuel = 35.0 + (hash % 55).toDouble()
         val seededDistance = 8000.0 + (hash % 145000).toDouble()
-        // If this is the first vehicle, make it primary
         val vehicleToSave = if (vehicles.isEmpty()) {
             vehicle.copy(
                 isPrimary = true,
@@ -41,7 +44,7 @@ class VehiclePreferences(context: Context) {
     }
 
     fun getVehicles(): List<VehicleInfo> {
-        val json = prefs.getString(KEY_VEHICLES, null) ?: return emptyList()
+        val json = prefs.getString(activeVehiclesKey(), null) ?: return emptyList()
         return try {
             val array = JSONArray(json)
             (0 until array.length()).map { i ->
@@ -57,7 +60,7 @@ class VehiclePreferences(context: Context) {
                     distanceDriven = obj.optDouble("distanceDriven", 12450.0)
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -102,6 +105,42 @@ class VehiclePreferences(context: Context) {
             }
             array.put(obj)
         }
-        prefs.edit().putString(KEY_VEHICLES, array.toString()).apply()
+        prefs.edit().putString(activeVehiclesKey(), array.toString()).apply()
+        pruneStaleVehicleBuckets()
+    }
+
+    private fun pruneStaleVehicleBuckets() {
+        val accountsJson = userPrefs.getString(KEY_ACCOUNTS, null) ?: return
+        val allowed = mutableSetOf("vehicles_guest")
+        try {
+            val array = JSONArray(accountsJson)
+            for (index in 0 until array.length()) {
+                val email = array.getJSONObject(index).optString("email", "")
+                if (email.isNotBlank()) {
+                    val sanitized = sanitizeEmail(email)
+                    allowed.add("vehicles_$sanitized")
+                }
+            }
+        } catch (_: Exception) {
+            return
+        }
+
+        val editor = prefs.edit()
+        prefs.all.keys
+            .filter { it.startsWith("vehicles_") && it !in allowed }
+            .forEach { editor.remove(it) }
+        editor.apply()
+    }
+
+    private fun activeVehiclesKey(): String {
+        val email = userPrefs.getString(USER_EMAIL_KEY, null)?.trim()?.lowercase().orEmpty()
+        if (email.isBlank()) return "vehicles_guest"
+        return "vehicles_${sanitizeEmail(email)}"
+    }
+
+    private fun sanitizeEmail(email: String): String = buildString {
+        email.forEach { ch ->
+            append(if (ch.isLetterOrDigit()) ch else '_')
+        }
     }
 }

@@ -59,6 +59,19 @@ class VehicleRepository(
 
     fun currentState(): VehicleStateSummary = _uiState.value
 
+    fun clearCachedState() {
+        stateCache.clear()
+        alertsCache.clear()
+        recommendationCache.clear()
+        _activeCarId = "default"
+        _uiState.value = VehicleStateSummary()
+        _alerts.value = emptyList()
+        _recommendation.value = RecommendationItem(
+            "Vehicle reading steady. Continue driving safely.",
+            null
+        )
+    }
+
     suspend fun fetchCurrentState() {
         try {
             val response = withContext(Dispatchers.IO) {

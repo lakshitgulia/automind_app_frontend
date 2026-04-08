@@ -40,6 +40,7 @@ fun AutoMindNavHost(
             LoginScreen(
                 userPreferences = userPreferences,
                 onLoginSuccess = {
+                    repository.clearCachedState()
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
@@ -61,6 +62,7 @@ fun AutoMindNavHost(
                 userPreferences = userPreferences,
                 vehiclePreferences = vehiclePreferences,
                 onLogout = {
+                    repository.clearCachedState()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }

@@ -346,6 +346,21 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 ) {
                                     Text("EDIT", fontWeight = FontWeight.Bold)
                                 }
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            repository.executeAiCycle(
+                                                actionType = "cancel_service",
+                                                value = 1.0,
+                                                reason = "User cancelled service booking"
+                                            )
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed)
+                                ) {
+                                    Text("CANCEL", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
