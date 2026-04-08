@@ -24,7 +24,7 @@ class UserPreferences(context: Context) {
 
     fun saveUser(name: String, email: String, password: String) {
         val normalizedEmail = normalizeEmail(email)
-        val accounts = (loadAccounts() + loadLegacyAccount())
+        val accounts = (loadAccounts() + listOfNotNull(loadLegacyAccount()))
             .distinctBy { it.optString("email") }
             .filterNot { it.optString("email") == normalizedEmail }
             .toMutableList()
@@ -53,7 +53,7 @@ class UserPreferences(context: Context) {
         val normalizedEmail = normalizeEmail(email)
         val passwordHash = hashPassword(password)
         val legacyPasswordHash = legacyHash(password)
-        val accounts = (loadAccounts() + loadLegacyAccount())
+        val accounts = (loadAccounts() + listOfNotNull(loadLegacyAccount()))
             .distinctBy { it.optString("email") }
             .toMutableList()
 
@@ -102,6 +102,37 @@ class UserPreferences(context: Context) {
 
     fun logout() {
         prefs.edit().putBoolean(KEY_LOGGED_IN, false).apply()
+    }
+
+    fun deleteCurrentAccount(): Boolean {
+        val currentEmail = getCurrentUserEmail()?.let(::normalizeEmail)
+            ?: currentAccount()?.optString("email")?.takeIf { it.isNotBlank() }?.let(::normalizeEmail)
+            ?: return false
+
+        val remainingAccounts = (loadAccounts() + listOfNotNull(loadLegacyAccount()))
+            .distinctBy { it.optString("email") }
+            .filterNot { normalizeEmail(it.optString("email")) == currentEmail }
+
+        val editor = prefs.edit()
+            .putBoolean(KEY_LOGGED_IN, false)
+            .remove(KEY_CURRENT_EMAIL)
+            .remove(KEY_NAME)
+            .remove(KEY_EMAIL)
+            .remove(KEY_PASSWORD)
+
+        if (remainingAccounts.isEmpty()) {
+            editor.remove(KEY_ACCOUNTS)
+        } else {
+            val array = JSONArray()
+            remainingAccounts
+                .sortedByDescending { it.optLong("last_used", 0L) }
+                .take(MAX_ACCOUNTS)
+                .forEach { array.put(it) }
+            editor.putString(KEY_ACCOUNTS, array.toString())
+        }
+
+        editor.apply()
+        return true
     }
 
     fun hasAccount(): Boolean = loadAccounts().isNotEmpty() || loadLegacyAccount() != null

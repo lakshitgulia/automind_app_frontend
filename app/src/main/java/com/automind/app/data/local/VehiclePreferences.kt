@@ -90,6 +90,16 @@ class VehiclePreferences(context: Context) {
 
     fun hasVehicles(): Boolean = getVehicles().isNotEmpty()
 
+    fun deleteVehiclesForEmail(email: String?) {
+        val normalizedEmail = email?.trim()?.lowercase().orEmpty()
+        val key = if (normalizedEmail.isBlank()) {
+            "vehicles_guest"
+        } else {
+            "vehicles_${sanitizeEmail(normalizedEmail)}"
+        }
+        prefs.edit().remove(key).apply()
+    }
+
     private fun saveVehicleList(vehicles: List<VehicleInfo>) {
         val array = JSONArray()
         vehicles.forEach { v ->

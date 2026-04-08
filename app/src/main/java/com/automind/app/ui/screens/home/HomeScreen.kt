@@ -284,7 +284,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "AUTOMIND AI INSIGHT â€¢ JUST NOW",
+                                text = "AUTOMIND AI INSIGHT JUST NOW",
                                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
                                 color = TextSecondary.copy(alpha = 0.6f)
                             )
@@ -309,27 +309,27 @@ fun HomeScreen(
                 item {
                     SectionHeader("Quick Telemetry")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         LargeMetricCard(
                             title = "Speed",
                             value = "%.1f km/h".format(uiState.speed),
                             icon = Icons.Default.Speed,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         )
                         LargeMetricCard(
                             title = "Eng Temp",
                             value = "%.1f °C".format(uiState.engineTemp),
                             icon = Icons.Default.Thermostat,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         )
                         LargeMetricCard(
                             title = "Battery",
                             value = "${uiState.batteryHealth.toInt()} %",
                             icon = Icons.Default.BatteryChargingFull,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

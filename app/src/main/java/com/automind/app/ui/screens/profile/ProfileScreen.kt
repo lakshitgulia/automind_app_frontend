@@ -41,6 +41,7 @@ fun ProfileScreen(
     val userEmail = userPreferences.getUserEmail()
     var vehicles by remember { mutableStateOf(vehiclePreferences.getVehicles()) }
     var showAddVehicleDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
@@ -80,11 +81,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Badges
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatusChip(status = "PREMIUM MEMBER", color = AccentCyan)
-                    StatusChip(status = "VERIFIED DRIVER", color = StatusGreen)
-                }
+                StatusChip(status = "VERIFIED", color = StatusGreen)
             }
 
             // Primary Vehicle Section
@@ -122,9 +119,6 @@ fun ProfileScreen(
             }
 
             items(vehicles) { vehicle ->
-                val isLiveVehicle = vehicle.isPrimary
-                val shownFuelLevel = if (isLiveVehicle && uiState.fuelLevel > 0.0) uiState.fuelLevel else vehicle.fuelLevel
-                val shownDistance = if (isLiveVehicle && uiState.distanceDriven > 0.0) uiState.distanceDriven else vehicle.distanceDriven
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
                     shape = RoundedCornerShape(16.dp),
@@ -203,69 +197,20 @@ fun ProfileScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(88.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(DarkSurfaceVariant),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(88.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(DarkSurfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.DirectionsCar,
-                                    contentDescription = null,
-                                    tint = AccentCyan.copy(alpha = 0.55f),
-                                    modifier = Modifier.size(38.dp)
-                                )
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text("FUEL LEVEL", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            "${shownFuelLevel.toInt()}%",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = TextPrimary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        LinearProgressIndicator(
-                                            progress = (shownFuelLevel / 100f).toFloat(),
-                                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                            color = AccentCyan,
-                                            trackColor = DarkSurface
-                                        )
-                                    }
-                                }
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Text("DIST. DRIVEN", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            "%,.0f km".format(shownDistance),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = TextPrimary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
+                            Icon(
+                                Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = AccentCyan.copy(alpha = 0.55f),
+                                modifier = Modifier.size(42.dp)
+                            )
                         }
                     }
                 }
@@ -290,6 +235,13 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
+                        SettingsRow(
+                            icon = Icons.Default.DeleteForever,
+                            title = "Delete Account",
+                            titleColor = StatusRed,
+                            onClick = { showDeleteAccountDialog = true }
+                        )
+                        HorizontalDivider(color = DarkSurfaceVariant, thickness = 0.5.dp)
                         SettingsRow(
                             icon = Icons.Default.Logout,
                             title = "Logout",
@@ -328,6 +280,48 @@ fun ProfileScreen(
                 repository.setActiveCarId(vehicle.licensePlate)
                 coroutineScope.launch {
                     repository.resetSession(vehicle.licensePlate)
+                }
+            }
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            containerColor = DarkSurface,
+            title = {
+                Text(
+                    text = "Delete Account?",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "This will permanently remove $userEmail and all saved local data for this account, including vehicles. You will need to create the account again to use it.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val emailToDelete = userPreferences.getCurrentUserEmail() ?: userEmail
+                        vehiclePreferences.deleteVehiclesForEmail(emailToDelete)
+                        userPreferences.deleteCurrentAccount()
+                        showDeleteAccountDialog = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = StatusRed,
+                        contentColor = TextPrimary
+                    )
+                ) {
+                    Text("DELETE")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text("CANCEL", color = TextSecondary)
                 }
             }
         )

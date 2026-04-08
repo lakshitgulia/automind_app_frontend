@@ -1,5 +1,6 @@
 package com.automind.app.ui.screens.alerts
 
+import android.location.Geocoder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,11 +50,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,18 +74,29 @@ import com.automind.app.ui.theme.StatusOrange
 import com.automind.app.ui.theme.StatusRed
 import com.automind.app.ui.theme.TextPrimary
 import com.automind.app.ui.theme.TextSecondary
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertsScreen(repository: VehicleRepository) {
     val alerts by repository.alerts.collectAsState()
     val uiState by repository.uiState.collectAsState()
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditDialog by remember { mutableStateOf(false) }
     var requestedDate by remember { mutableStateOf("") }
     var requestedTime by remember { mutableStateOf("") }
+    val liveVehicleLocation by produceState(
+        initialValue = formatCoordinates(uiState.vehicleLat, uiState.vehicleLon),
+        uiState.vehicleLat,
+        uiState.vehicleLon
+    ) {
+        value = resolveLocationLabel(context, uiState.vehicleLat, uiState.vehicleLon)
+    }
 
     LaunchedEffect(uiState.serviceScheduledDate, uiState.serviceScheduledTime, uiState.serviceRequestedDate, uiState.serviceRequestedTime) {
         requestedDate = uiState.serviceScheduledDate.ifBlank { uiState.serviceRequestedDate }
@@ -192,9 +206,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                         description = alert.message,
                         priority = "CRITICAL",
                         priorityColor = StatusRed,
-                        accentColor = StatusRed,
-                        onLocateService = {},
-                        onDismiss = {}
+                        accentColor = StatusRed
                     )
                 }
             }
@@ -225,9 +237,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                         description = alert.message,
                         priority = "WARNING",
                         priorityColor = StatusOrange,
-                        accentColor = StatusOrange,
-                        onLocateService = {},
-                        onDismiss = {}
+                        accentColor = StatusOrange
                     )
                 }
             }
@@ -369,7 +379,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 )
                             }
                             Text(
-                                text = "Live vehicle location: ${"%.5f".format(uiState.vehicleLat)}, ${"%.5f".format(uiState.vehicleLon)}",
+                                text = "Live vehicle location: $liveVehicleLocation",
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
@@ -410,7 +420,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(
-                                    if (hasBooking) "SCHEDULED" else "SCHEDULE NOW",
+                                    if (hasBooking) "BOOKED" else "SCHEDULE NOW",
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,
                                     maxLines = 1
@@ -418,7 +428,6 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
-
                             if (hasBooking && uiState.serviceBookingEditable) {
                                 OutlinedButton(
                                     modifier = Modifier.weight(1f),
@@ -537,4 +546,30 @@ private fun EditServiceDialog(
             }
         }
     )
+}
+
+private fun formatCoordinates(latitude: Double, longitude: Double): String {
+    if (latitude == 0.0 && longitude == 0.0) return "Unavailable"
+    return "${"%.5f".format(latitude)}, ${"%.5f".format(longitude)}"
+}
+
+private suspend fun resolveLocationLabel(
+    context: android.content.Context,
+    latitude: Double,
+    longitude: Double
+): String = withContext(Dispatchers.IO) {
+    if (latitude == 0.0 && longitude == 0.0) return@withContext "Unavailable"
+    if (!Geocoder.isPresent()) return@withContext formatCoordinates(latitude, longitude)
+
+    runCatching {
+        @Suppress("DEPRECATION")
+        Geocoder(context, Locale.getDefault()).getFromLocation(latitude, longitude, 1)
+            ?.firstOrNull()
+    }.getOrNull()?.let { address ->
+        listOfNotNull(
+            address.subLocality?.takeIf { it.isNotBlank() },
+            address.locality?.takeIf { it.isNotBlank() },
+            address.adminArea?.takeIf { it.isNotBlank() }
+        ).distinct().joinToString(", ").takeIf { it.isNotBlank() }
+    } ?: formatCoordinates(latitude, longitude)
 }

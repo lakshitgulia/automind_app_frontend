@@ -138,6 +138,9 @@ class VehicleRepository(
         useMockFallback = enabled
     }
 
+    private fun cleanGearDisplay(raw: String): String =
+        raw.replace(" auto", "", ignoreCase = true).trim()
+
     private fun prettyRiskLabel(raw: String): String = raw.replace("_", " ")
 
     private fun nextLikelyRiskShift(predictions: MlPredictions?): String {
@@ -181,7 +184,8 @@ class VehicleRepository(
             rpm = obs?.rpm ?: current.rpm,
             throttle = obs?.throttle ?: current.throttle,
             gear = obs?.gear ?: current.gear,
-            gearDisplay = trip?.gearDisplay ?: (obs?.gear?.let { "D${it} Auto" } ?: current.gearDisplay),
+            gearDisplay = trip?.gearDisplay?.let(::cleanGearDisplay)
+                ?: (obs?.gear?.let { "D$it" } ?: current.gearDisplay),
             forwardDistance = safety?.distanceToObstacleM ?: obs?.distanceToObstacle ?: current.forwardDistance,
             rangeKm = trip?.rangeKm ?: current.rangeKm,
             roadCondition = obs?.roadCondition ?: current.roadCondition,

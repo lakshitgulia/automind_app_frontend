@@ -233,7 +233,7 @@ data class VehicleStateSummary(
     val rpm: Double = 0.0,
     val throttle: Double = 0.0,
     val gear: Int = 1,
-    val gearDisplay: String = "D1 Auto",
+    val gearDisplay: String = "D1",
     val forwardDistance: Double = 0.0,
     val rangeKm: Int = 0,
     val roadCondition: String = "Unknown",
