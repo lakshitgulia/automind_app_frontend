@@ -17,7 +17,6 @@ import com.automind.app.data.local.UserPreferences
 import com.automind.app.data.local.VehiclePreferences
 import com.automind.app.data.repository.VehicleRepository
 import com.automind.app.ui.screens.alerts.AlertsScreen
-import com.automind.app.ui.screens.demo.DemoControlPanelScreen
 import com.automind.app.ui.screens.home.HomeScreen
 import com.automind.app.ui.screens.login.LoginScreen
 import com.automind.app.ui.screens.profile.ProfileScreen
@@ -61,18 +60,12 @@ fun AutoMindNavHost(
                 repository = repository,
                 userPreferences = userPreferences,
                 vehiclePreferences = vehiclePreferences,
-                onNavigateToDemo = {
-                    navController.navigate(Screen.DemoControlPanel.route)
-                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
             )
-        }
-        composable(Screen.DemoControlPanel.route) {
-            DemoControlPanelScreen(repository)
         }
     }
 }
@@ -88,8 +81,8 @@ fun AutoMindBottomBar(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Don't show bottom bar on Login or Demo Control Panel
-    if (currentRoute == Screen.Login.route || currentRoute == Screen.DemoControlPanel.route) return
+    // Don't show bottom bar on Login
+    if (currentRoute == Screen.Login.route) return
 
     NavigationBar(
         containerColor = com.automind.app.ui.theme.DarkSurface,

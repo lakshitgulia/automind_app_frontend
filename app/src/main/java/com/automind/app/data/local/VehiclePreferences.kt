@@ -67,8 +67,15 @@ class VehiclePreferences(context: Context) {
     }
 
     fun removeVehicle(id: String) {
-        val vehicles = getVehicles().filter { it.id != id }
-        saveVehicleList(vehicles)
+        val remainingVehicles = getVehicles().filter { it.id != id }
+        val normalizedVehicles = if (remainingVehicles.isNotEmpty() && remainingVehicles.none { it.isPrimary }) {
+            remainingVehicles.mapIndexed { index, vehicle ->
+                vehicle.copy(isPrimary = index == 0)
+            }
+        } else {
+            remainingVehicles
+        }
+        saveVehicleList(normalizedVehicles)
     }
 
     fun setPrimaryVehicle(id: String) {

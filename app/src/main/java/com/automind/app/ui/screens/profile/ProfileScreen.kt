@@ -33,7 +33,6 @@ fun ProfileScreen(
     repository: VehicleRepository,
     userPreferences: UserPreferences,
     vehiclePreferences: VehiclePreferences,
-    onNavigateToDemo: () -> Unit,
     onLogout: () -> Unit
 ) {
     val isConnected by repository.isConnected.collectAsState()
@@ -48,11 +47,6 @@ fun ProfileScreen(
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
-                    }
-                },
                 actions = {
                     Text("AutoMind", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(16.dp))
@@ -173,77 +167,103 @@ fun ProfileScreen(
                                     color = AccentCyan
                                 )
                             }
-                            StatusChip(
-                                status = if (isConnected && vehicle.isPrimary) "ACTIVE" else "OFFLINE",
-                                color = if (isConnected && vehicle.isPrimary) StatusGreen else StatusRed
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StatusChip(
+                                    status = if (isConnected && vehicle.isPrimary) "ACTIVE" else "OFFLINE",
+                                    color = if (isConnected && vehicle.isPrimary) StatusGreen else StatusRed
+                                )
+                                IconButton(
+                                    onClick = {
+                                        val removingActiveVehicle =
+                                            vehicle.licensePlate == repository.getActiveCarId() || vehicle.isPrimary
+                                        vehiclePreferences.removeVehicle(vehicle.id)
+                                        vehicles = vehiclePreferences.getVehicles()
+
+                                        if (removingActiveVehicle) {
+                                            val nextVehicle = vehiclePreferences.getPrimaryVehicle()
+                                            if (nextVehicle != null) {
+                                                repository.setActiveCarId(nextVehicle.licensePlate)
+                                                coroutineScope.launch {
+                                                    repository.resetSession(nextVehicle.licensePlate)
+                                                }
+                                            } else {
+                                                repository.setActiveCarId("default")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.DeleteOutline,
+                                        contentDescription = "Remove vehicle",
+                                        tint = StatusRed
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Car icon placeholder
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(DarkSurfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.DirectionsCar,
-                                contentDescription = null,
-                                tint = AccentCyan.copy(alpha = 0.5f),
-                                modifier = Modifier.size(64.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Fuel level + Distance
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
+                            Box(
+                                modifier = Modifier
+                                    .size(88.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(DarkSurfaceVariant),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("FUEL LEVEL", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(verticalAlignment = Alignment.Bottom) {
+                                Icon(
+                                    Icons.Default.DirectionsCar,
+                                    contentDescription = null,
+                                    tint = AccentCyan.copy(alpha = 0.55f),
+                                    modifier = Modifier.size(38.dp)
+                                )
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("FUEL LEVEL", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
+                                        Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             "${shownFuelLevel.toInt()}%",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = TextPrimary,
                                             fontWeight = FontWeight.Bold
                                         )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        LinearProgressIndicator(
+                                            progress = (shownFuelLevel / 100f).toFloat(),
+                                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                            color = AccentCyan,
+                                            trackColor = DarkSurface
+                                        )
                                     }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    LinearProgressIndicator(
-                                        progress = (shownFuelLevel / 100f).toFloat(),
-                                        modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-                                        color = AccentCyan,
-                                        trackColor = DarkSurface
-                                    )
                                 }
-                            }
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("DIST. DRIVEN", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        "%,.0f km".format(shownDistance),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("DIST. DRIVEN", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp), color = TextSecondary)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            "%,.0f km".format(shownDistance),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -270,16 +290,6 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
-                        SettingsRow(icon = Icons.Default.Settings, title = "App Settings", onClick = {})
-                        HorizontalDivider(color = DarkSurfaceVariant, thickness = 0.5.dp)
-                        SettingsRow(icon = Icons.Default.Notifications, title = "Notifications", onClick = {})
-                        HorizontalDivider(color = DarkSurfaceVariant, thickness = 0.5.dp)
-                        SettingsRow(
-                            icon = Icons.Default.Code,
-                            title = "Developer Console",
-                            onClick = onNavigateToDemo
-                        )
-                        HorizontalDivider(color = DarkSurfaceVariant, thickness = 0.5.dp)
                         SettingsRow(
                             icon = Icons.Default.Logout,
                             title = "Logout",

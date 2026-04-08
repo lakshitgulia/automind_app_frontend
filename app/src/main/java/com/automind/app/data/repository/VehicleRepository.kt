@@ -3,9 +3,11 @@ package com.automind.app.data.repository
 import android.util.Log
 import com.automind.app.data.model.*
 import com.automind.app.data.network.AutoMindApiService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class VehicleRepository(
@@ -59,7 +61,9 @@ class VehicleRepository(
 
     suspend fun fetchCurrentState() {
         try {
-            val response = apiService.getState(System.currentTimeMillis(), _activeCarId)
+            val response = withContext(Dispatchers.IO) {
+                apiService.getState(System.currentTimeMillis(), _activeCarId)
+            }
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "fetchCurrentState success (carId=$_activeCarId)")
@@ -74,7 +78,9 @@ class VehicleRepository(
 
     suspend fun resetSession(carId: String = _activeCarId, payload: Map<String, String> = emptyMap()) {
         try {
-            val response = apiService.resetSession(carId, payload)
+            val response = withContext(Dispatchers.IO) {
+                apiService.resetSession(carId, payload)
+            }
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "resetSession success: carId=$carId")
@@ -93,14 +99,16 @@ class VehicleRepository(
         reason: String = "Auto-run AI cycle"
     ) {
         try {
-            val response = apiService.executeStep(
-                StepRequest(
-                    actionType,
-                    value,
-                    reason
-                ),
-                _activeCarId
-            )
+            val response = withContext(Dispatchers.IO) {
+                apiService.executeStep(
+                    StepRequest(
+                        actionType,
+                        value,
+                        reason
+                    ),
+                    _activeCarId
+                )
+            }
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "executeAiCycle success: actionType=$actionType value=$value carId=$_activeCarId")

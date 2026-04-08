@@ -51,11 +51,6 @@ fun AlertsScreen(repository: VehicleRepository) {
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
-                    }
-                },
                 actions = {
                     Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = AccentCyan)
                     Spacer(modifier = Modifier.width(16.dp))

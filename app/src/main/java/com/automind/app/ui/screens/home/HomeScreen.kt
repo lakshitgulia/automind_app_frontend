@@ -4,7 +4,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,7 +13,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,11 +53,6 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
-                    }
-                },
                 actions = {
                     Text(
                         "AutoMind",
@@ -92,7 +85,7 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (hasVehicle) "System operational. 4 agents active." else "Add a vehicle to start monitoring.",
+                    text = if (hasVehicle) "System operational. Live monitoring is active." else "Add a vehicle to start monitoring.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
@@ -340,18 +333,6 @@ fun HomeScreen(
                         )
                     }
                 }
-
-                // Active System Agents
-                item {
-                    SectionHeader("Active System Agents")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AgentRow(name = "Diagnosis", status = "Active", icon = Icons.Default.Build, statusColor = StatusGreen)
-                        AgentRow(name = "Safety", status = "Analyzing", icon = Icons.Default.Shield, statusColor = AccentCyan)
-                        AgentRow(name = "Predictive ML", status = "Forecasting", icon = Icons.Default.AutoGraph, statusColor = AccentCyan)
-                        AgentRow(name = "Service", status = "Ready", icon = Icons.Default.Settings, statusColor = TextSecondary)
-                    }
-                }
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -373,54 +354,6 @@ fun HomeScreen(
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun AgentRow(
-    name: String,
-    status: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    statusColor: Color
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(statusColor.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = statusColor, modifier = Modifier.size(18.dp))
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(name, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(status, style = MaterialTheme.typography.bodySmall, color = statusColor)
-                Spacer(modifier = Modifier.width(8.dp))
-                if (status == "Active" || status == "Analyzing") {
-                    PulsingDot(color = statusColor, size = 8.dp)
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(statusColor.copy(alpha = 0.5f))
-                    )
-                }
-            }
         }
     }
 }

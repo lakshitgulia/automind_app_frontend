@@ -8,9 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.automind.app.data.local.UserPreferences
@@ -23,7 +22,13 @@ import com.automind.app.ui.navigation.Screen
 import com.automind.app.ui.theme.AutoMindTheme
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
@@ -38,8 +43,15 @@ class MainActivity : ComponentActivity() {
         .add(KotlinJsonAdapterFactory())
         .build()
 
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
+        .build()
+
     private val retrofit = Retrofit.Builder()
         .baseUrl(BACKEND_BASE_URL)
+        .client(httpClient)
         .addConverterFactory(MoshiConverterFactory.create(moshi))
         .build()
 
@@ -48,6 +60,32 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var userPreferences: UserPreferences
     private lateinit var vehiclePreferences: VehiclePreferences
+    private var pollingJob: Job? = null
+
+    private fun startPolling() {
+        if (pollingJob?.isActive == true) return
+
+        pollingJob = lifecycleScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                if (vehiclePreferences.hasVehicles()) {
+                    if (repository.getActiveCarId() == "default") {
+                        val primary = vehiclePreferences.getPrimaryVehicle()
+                        if (primary != null) {
+                            repository.setActiveCarId(primary.licensePlate)
+                            repository.resetSession(primary.licensePlate)
+                        }
+                    }
+                    repository.fetchCurrentState()
+                }
+                delay(2000L)
+            }
+        }
+    }
+
+    private fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,23 +105,9 @@ class MainActivity : ComponentActivity() {
                 // Continuous telemetry loop — only when logged in
                 LaunchedEffect(currentRoute) {
                     if (currentRoute != null && currentRoute != Screen.Login.route) {
-                        while (true) {
-                            if (vehiclePreferences.hasVehicles()) {
-                                if (repository.getActiveCarId() == "default") {
-                                    val primary = vehiclePreferences.getPrimaryVehicle()
-                                    if (primary != null) {
-                                        repository.setActiveCarId(primary.licensePlate)
-                                        try {
-                                            repository.resetSession(primary.licensePlate)
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
-                                    }
-                                }
-                                repository.fetchCurrentState()
-                            }
-                            delay(2000L)
-                        }
+                        startPolling()
+                    } else {
+                        stopPolling()
                     }
                 }
 
@@ -102,5 +126,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        stopPolling()
+        super.onDestroy()
     }
 }

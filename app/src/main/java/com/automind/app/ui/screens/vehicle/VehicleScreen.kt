@@ -13,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,11 +44,6 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
-                    }
-                },
                 actions = {
                     Text("AutoMind", color = AccentCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(16.dp))
@@ -169,7 +163,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
+                            .height(96.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(DarkSurface),
                         contentAlignment = Alignment.Center
@@ -178,15 +172,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                             Icons.Default.DirectionsCar,
                             contentDescription = null,
                             tint = AccentCyan.copy(alpha = 0.4f),
-                            modifier = Modifier.size(80.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(start = 100.dp, top = 60.dp)
-                                .size(12.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(if (uiState.engineHeatAlert || uiState.brakeSystemStatus) StatusRed else StatusGreen)
+                            modifier = Modifier.size(42.dp)
                         )
                     }
                 }
@@ -241,7 +227,6 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             ProgressBarItem("Driving Safety Score", uiState.safetyScore.toFloat().coerceIn(0f, 1f), StatusGreen)
-                            ProgressBarItem("Collision Risk", uiState.collisionRisk.toFloat().coerceIn(0f, 1f), StatusRed)
                         }
                     }
                 }
@@ -259,24 +244,7 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                             ProgressBarItem("Oil System Risk", uiState.predictedOilRisk.toFloat().coerceIn(0f, 1f), StatusOrange)
                             ProgressBarItem("Battery Failure Risk", uiState.predictedBatteryRisk.toFloat().coerceIn(0f, 1f), AccentCyan)
                             ProgressBarItem("Brake Degradation Risk", uiState.predictedBrakeRisk.toFloat().coerceIn(0f, 1f), StatusOrange)
-                            ProgressBarItem("Collision Exposure", uiState.predictedCollisionRisk.toFloat().coerceIn(0f, 1f), StatusRed)
                         }
-                    }
-                }
-
-                // AI Quote
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = AccentCyan.copy(alpha = 0.06f)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "\"Predictive model ${uiState.predictiveModelName.ifBlank { "automind_predictive_v1" }} is monitoring failure trends ahead of breakdown.\"",
-                            style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
-                            color = TextSecondary,
-                            modifier = Modifier.padding(16.dp)
-                        )
                     }
                 }
 
