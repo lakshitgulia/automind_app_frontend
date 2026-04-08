@@ -95,7 +95,7 @@ app/src/main/java/com/automind/app/
 
 The app currently points to:
 
-`https://automind-rl.onrender.com/`
+`https://khushi1811-automind-rl.hf.space/`
 
 Used endpoints include:
 

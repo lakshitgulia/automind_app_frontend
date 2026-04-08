@@ -35,7 +35,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 class MainActivity : ComponentActivity() {
     companion object {
         // IMPORTANT: point this to the latest backend deployment that serves /state, /reset, /step.
-        private const val BACKEND_BASE_URL = "https://automind-rl.onrender.com/"
+        private const val BACKEND_BASE_URL = "https://khushi1811-automind-rl.hf.space/"
     }
 
     // Simple manual DI for the hackathon
