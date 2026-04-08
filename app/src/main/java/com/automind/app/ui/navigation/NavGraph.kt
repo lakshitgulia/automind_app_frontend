@@ -48,7 +48,18 @@ fun AutoMindNavHost(
             )
         }
         composable(Screen.Home.route) {
-            HomeScreen(repository, userPreferences, vehiclePreferences)
+            HomeScreen(
+                repository = repository,
+                userPreferences = userPreferences,
+                vehiclePreferences = vehiclePreferences,
+                onNavigateToVehicle = {
+                    navController.navigate(Screen.Vehicle.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
         }
         composable(Screen.Vehicle.route) {
             VehicleScreen(repository, vehiclePreferences)

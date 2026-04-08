@@ -30,7 +30,8 @@ import java.util.Calendar
 fun HomeScreen(
     repository: VehicleRepository,
     userPreferences: UserPreferences,
-    vehiclePreferences: VehiclePreferences
+    vehiclePreferences: VehiclePreferences,
+    onNavigateToVehicle: () -> Unit = {}
 ) {
     val uiState by repository.uiState.collectAsState()
     val isConnected by repository.isConnected.collectAsState()
@@ -288,17 +289,21 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
                                 color = TextSecondary.copy(alpha = 0.6f)
                             )
-                            recommendation.actionText?.let {
+                            recommendation.actionText?.let { actionText ->
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Button(
-                                    onClick = {},
+                                    onClick = {
+                                        if (actionText.contains("Inspect Vehicle", ignoreCase = true)) {
+                                            onNavigateToVehicle()
+                                        }
+                                    },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = if (recommendation.isCritical) StatusRed else AccentCyan,
                                         contentColor = DarkBackground
                                     ),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Text(it, fontWeight = FontWeight.Bold)
+                                    Text(actionText, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
