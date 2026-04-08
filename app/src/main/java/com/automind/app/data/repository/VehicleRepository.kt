@@ -17,9 +17,11 @@ class VehicleRepository(
 
     private val _uiState = MutableStateFlow(VehicleStateSummary())
     val uiState: StateFlow<VehicleStateSummary> = _uiState.asStateFlow()
+    private val stateCache = mutableMapOf<String, VehicleStateSummary>()
 
     private val _alerts = MutableStateFlow<List<AlertItem>>(emptyList())
     val alerts: StateFlow<List<AlertItem>> = _alerts.asStateFlow()
+    private val alertsCache = mutableMapOf<String, List<AlertItem>>()
 
     private val _recommendation = MutableStateFlow(
         RecommendationItem(
@@ -28,6 +30,7 @@ class VehicleRepository(
         )
     )
     val recommendation: StateFlow<RecommendationItem> = _recommendation.asStateFlow()
+    private val recommendationCache = mutableMapOf<String, RecommendationItem>()
 
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
@@ -40,6 +43,13 @@ class VehicleRepository(
 
     fun setActiveCarId(carId: String) {
         _activeCarId = carId
+        _uiState.value = stateCache[carId] ?: VehicleStateSummary(carId = carId)
+        _alerts.value = alertsCache[carId] ?: emptyList()
+        _recommendation.value = recommendationCache[carId]
+            ?: RecommendationItem(
+                "Vehicle reading steady. Continue driving safely.",
+                null
+            )
         Log.d(TAG, "Active car ID set to: $carId")
     }
 
@@ -140,7 +150,7 @@ class VehicleRepository(
         val recommendation = maintenance?.serviceRecommended
         val identity = dashboard?.vehicle ?: response.vehicle
 
-        val current = _uiState.value
+        val current = stateCache[_activeCarId] ?: _uiState.value
         val summary = current.copy(
             carId = identity?.carId ?: _activeCarId,
             vehicleDisplayName = identity?.name ?: current.vehicleDisplayName,
@@ -200,11 +210,15 @@ class VehicleRepository(
             serviceScheduledTime = booking?.scheduledTime ?: current.serviceScheduledTime,
             serviceBookingId = booking?.bookingId ?: current.serviceBookingId,
             serviceUrgency = booking?.urgency ?: current.serviceUrgency,
+            serviceRequestedDate = booking?.requestedDate ?: current.serviceRequestedDate,
+            serviceRequestedTime = booking?.requestedTime ?: current.serviceRequestedTime,
+            serviceBookingEditable = booking?.editable ?: current.serviceBookingEditable,
             vehicleLat = booking?.vehicleLat ?: recommendation?.vehicleLat ?: obs?.latitude ?: current.vehicleLat,
             vehicleLon = booking?.vehicleLon ?: recommendation?.vehicleLon ?: obs?.longitude ?: current.vehicleLon
         )
 
         _uiState.value = summary
+        stateCache[summary.carId] = summary
         generateAlertsAndRecommendations(summary, dashboard?.activeAlerts ?: response.activeAlerts)
     }
 
@@ -235,6 +249,8 @@ class VehicleRepository(
                 },
                 isCritical = (topAlert.severity ?: "").equals("CRITICAL", ignoreCase = true)
             )
+            alertsCache[state.carId] = _alerts.value
+            recommendationCache[state.carId] = _recommendation.value
             return
         }
 
@@ -316,6 +332,8 @@ class VehicleRepository(
         val combined = (newAlerts + _alerts.value).distinctBy { it.title }.take(10)
         _alerts.value = combined
         _recommendation.value = RecommendationItem(recMsg, action, isCrit)
+        alertsCache[state.carId] = _alerts.value
+        recommendationCache[state.carId] = _recommendation.value
     }
 
     private fun applyMockState(jitter: Boolean = false) {

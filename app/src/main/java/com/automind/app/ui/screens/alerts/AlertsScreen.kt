@@ -9,9 +9,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +34,14 @@ fun AlertsScreen(repository: VehicleRepository) {
     val alerts by repository.alerts.collectAsState()
     val uiState by repository.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    var showEditDialog by remember { mutableStateOf(false) }
+    var requestedDate by remember { mutableStateOf("") }
+    var requestedTime by remember { mutableStateOf("") }
+
+    LaunchedEffect(uiState.serviceScheduledDate, uiState.serviceScheduledTime, uiState.serviceRequestedDate, uiState.serviceRequestedTime) {
+        requestedDate = uiState.serviceScheduledDate.ifBlank { uiState.serviceRequestedDate }
+        requestedTime = uiState.serviceScheduledTime.ifBlank { uiState.serviceRequestedTime }
+    }
 
     val criticalAlerts = alerts.filter { it.priority == AlertPriority.CRITICAL }
     val warningAlerts = alerts.filter { it.priority == AlertPriority.WARNING }
@@ -276,7 +288,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 color = AccentCyan
                             )
                             Text(
-                                text = "ETA: ${uiState.serviceEtaMinutes} min • Distance: ${"%.1f".format(uiState.serviceDistanceKm)} km",
+                                text = "ETA: ${uiState.serviceEtaMinutes} min | Distance: ${"%.1f".format(uiState.serviceDistanceKm)} km",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
@@ -307,28 +319,39 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 color = AccentCyan
                             )
                             Text(
-                                text = "ETA ${uiState.serviceEtaMinutes} min • ${"%.1f".format(uiState.serviceDistanceKm)} km away",
+                                text = "ETA ${uiState.serviceEtaMinutes} min | ${"%.1f".format(uiState.serviceDistanceKm)} km away",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    repository.executeAiCycle(
-                                        actionType = "request_service",
-                                        value = 1.0,
-                                        reason = "User requested service from alerts screen"
-                                    )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        repository.executeAiCycle(
+                                            actionType = "request_service",
+                                            value = 1.0,
+                                            reason = "User requested service from alerts screen"
+                                        )
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = DarkBackground),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(if (uiState.serviceBookingStatus != null) "SCHEDULED" else "SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                            if (uiState.serviceBookingStatus != null && uiState.serviceBookingEditable) {
+                                OutlinedButton(
+                                    onClick = { showEditDialog = true },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
+                                ) {
+                                    Text("EDIT", fontWeight = FontWeight.Bold)
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = DarkBackground),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(if (uiState.serviceBookingStatus != null) "SCHEDULED" else "SCHEDULE NOW", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                 }
@@ -337,4 +360,84 @@ fun AlertsScreen(repository: VehicleRepository) {
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
+
+    if (showEditDialog) {
+        EditServiceDialog(
+            initialDate = requestedDate,
+            initialTime = requestedTime,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { date, time ->
+                showEditDialog = false
+                coroutineScope.launch {
+                    repository.executeAiCycle(
+                        actionType = "reschedule_service",
+                        value = 1.0,
+                        reason = "requested_date=$date;requested_time=$time"
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun EditServiceDialog(
+    initialDate: String,
+    initialTime: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit,
+) {
+    var date by remember(initialDate) { mutableStateOf(initialDate) }
+    var time by remember(initialTime) { mutableStateOf(initialTime) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = { Text("Edit Service Slot", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text("Preferred Date") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = DarkSurfaceVariant,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedLabelColor = AccentCyan,
+                        unfocusedLabelColor = TextSecondary,
+                    )
+                )
+                OutlinedTextField(
+                    value = time,
+                    onValueChange = { time = it },
+                    label = { Text("Preferred Time") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentCyan,
+                        unfocusedBorderColor = DarkSurfaceVariant,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedLabelColor = AccentCyan,
+                        unfocusedLabelColor = TextSecondary,
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(date.trim(), time.trim()) },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentCyan, contentColor = DarkBackground),
+            ) {
+                Text("SAVE")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = TextSecondary)
+            }
+        }
+    )
 }

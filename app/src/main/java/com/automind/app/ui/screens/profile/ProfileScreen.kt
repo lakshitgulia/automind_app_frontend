@@ -128,7 +128,7 @@ fun ProfileScreen(
             }
 
             items(vehicles) { vehicle ->
-                val isLiveVehicle = vehicle.licensePlate == uiState.carId
+                val isLiveVehicle = vehicle.isPrimary
                 val shownFuelLevel = if (isLiveVehicle && uiState.fuelLevel > 0.0) uiState.fuelLevel else vehicle.fuelLevel
                 val shownDistance = if (isLiveVehicle && uiState.distanceDriven > 0.0) uiState.distanceDriven else vehicle.distanceDriven
                 Card(
@@ -144,7 +144,13 @@ fun ProfileScreen(
                             vehiclePreferences.setPrimaryVehicle(vehicle.id)
                             vehicles = vehiclePreferences.getVehicles()
                             coroutineScope.launch {
-                                repository.resetSession(vehicle.licensePlate)
+                                repository.resetSession(
+                                    vehicle.licensePlate,
+                                    mapOf(
+                                        "vehicle_name" to "${vehicle.make} ${vehicle.model} ${vehicle.year}",
+                                        "vehicle_maker" to vehicle.make
+                                    )
+                                )
                             }
                         }
                 ) {

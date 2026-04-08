@@ -142,6 +142,11 @@ data class ServiceBooking(
     @Json(name = "scheduled_at") val scheduledAt: String? = null,
     @Json(name = "scheduled_date") val scheduledDate: String? = null,
     @Json(name = "scheduled_time") val scheduledTime: String? = null,
+    @Json(name = "requested_date") val requestedDate: String? = null,
+    @Json(name = "requested_time") val requestedTime: String? = null,
+    @Json(name = "editable") val editable: Boolean? = null,
+    @Json(name = "car_id") val carId: String? = null,
+    @Json(name = "vehicle_name") val vehicleName: String? = null,
     @Json(name = "service_center_lat") val serviceCenterLat: Double? = null,
     @Json(name = "service_center_lon") val serviceCenterLon: Double? = null,
     @Json(name = "vehicle_lat") val vehicleLat: Double? = null,
@@ -279,6 +284,9 @@ data class VehicleStateSummary(
     val serviceScheduledTime: String = "",
     val serviceBookingId: String = "",
     val serviceUrgency: String = "",
+    val serviceRequestedDate: String = "",
+    val serviceRequestedTime: String = "",
+    val serviceBookingEditable: Boolean = false,
     val vehicleLat: Double = 0.0,
     val vehicleLon: Double = 0.0
 )
