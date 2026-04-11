@@ -12,7 +12,10 @@ This repository is the Android frontend only.
 - Predictive maintenance and alert rendering
 - Service schedule, reschedule, and cancel flows
 
-Khushi's backend lives in a separate repository and is not part of this codebase.
+Khushi's backend lives in a separate repository and is not part of this codebase:
+
+- Backend repo: [KG1811/automind-rl](https://github.com/KG1811/automind-rl)
+- Live deployment used by this app: [khushi1811-automind-rl.hf.space](https://khushi1811-automind-rl.hf.space/)
 
 ## Current Product Flow
 
@@ -58,6 +61,10 @@ The frontend then:
 - logout and account deletion
 
 ## Backend Integration
+
+Related backend repository:
+
+- [KG1811/automind-rl](https://github.com/KG1811/automind-rl)
 
 The app is configured to use:
 
