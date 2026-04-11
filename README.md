@@ -161,16 +161,6 @@ Useful commands:
 - removed redundant or noisy UI elements
 - improved Home and Alerts screen clarity
 
-## Strong Next Enhancements
-
-- Add a backend configuration layer with `BuildConfig` or flavors so the API URL is not hardcoded in `MainActivity`.
-- Move manual dependency creation out of `MainActivity` into Hilt or a small DI container.
-- Replace `SharedPreferences` auth and vehicle storage with Room or DataStore for stronger state handling.
-- Add repository and mapper tests for backend payload parsing and service-action flows.
-- Add loading, empty, and retry states per screen instead of relying mostly on snackbars.
-- Add a small debug panel for current `car_id`, last fetch time, backend connection state, and last service action result.
-- Introduce screenshots and a short demo section in this README for stronger portfolio presentation.
-
 ## Notes
 
 - This repo is the frontend app only.
