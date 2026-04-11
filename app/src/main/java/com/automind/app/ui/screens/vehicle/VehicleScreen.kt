@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +28,17 @@ import com.automind.app.ui.theme.*
 fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePreferences) {
     val uiState by repository.uiState.collectAsState()
     val hasVehicle = vehiclePreferences.hasVehicles()
+    val selectedVehicle = vehiclePreferences.getPrimaryVehicle() ?: vehiclePreferences.getVehicles().firstOrNull()
+
+    LaunchedEffect(selectedVehicle?.id, selectedVehicle?.licensePlate, hasVehicle) {
+        if (!hasVehicle) return@LaunchedEffect
+
+        val activeCarId = selectedVehicle?.licensePlate ?: repository.getActiveCarId()
+        if (repository.getActiveCarId() != activeCarId) {
+            repository.setActiveCarId(activeCarId)
+        }
+        repository.fetchCurrentState()
+    }
 
     val healthScore = uiState.healthScore
     val statusLabel = when {
@@ -158,25 +170,6 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                     }
                 }
 
-                // Car Visualization Area
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(96.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(DarkSurface),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.DirectionsCar,
-                            contentDescription = null,
-                            tint = AccentCyan.copy(alpha = 0.4f),
-                            modifier = Modifier.size(42.dp)
-                        )
-                    }
-                }
-
                 // Telemetry Grid 2x2
                 item {
                     Row(
@@ -256,21 +249,21 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                         DiagnosticRow(
                             icon = Icons.Default.DirectionsCar,
                             title = "Brake System",
-                            subtitle = "HYDRAULIC PRESSURE 12 VPA",
+                            subtitle = "Obstacle ${"%.1f".format(uiState.forwardDistance)} m • Collision ${(uiState.collisionRisk * 100).toInt()}%",
                             status = if (uiState.brakeSystemStatus) "WARNING" else "NORMAL",
                             statusColor = if (uiState.brakeSystemStatus) StatusRed else StatusGreen
                         )
                         DiagnosticRow(
                             icon = Icons.Default.Sensors,
                             title = "Sensor Array",
-                            subtitle = "CALIBRATION OPTIMAL",
+                            subtitle = "Road ${uiState.roadCondition.uppercase()} • Heading ${uiState.heading.toInt()}°",
                             status = if (uiState.sensorSystemStatus) "WARNING" else "NORMAL",
                             statusColor = if (uiState.sensorSystemStatus) StatusRed else StatusGreen
                         )
                         DiagnosticRow(
                             icon = Icons.Default.LocalFireDepartment,
                             title = "Engine Performance",
-                            subtitle = "TEMP: ${uiState.engineTemp.toInt()}°C",
+                            subtitle = "TEMP ${uiState.engineTemp.toInt()}°C • LOAD ${uiState.engineLoad.toInt()}%",
                             status = uiState.engineStatus,
                             statusColor = when (uiState.engineStatus.uppercase()) {
                                 "CRITICAL", "WARNING", "ATTENTION" -> StatusRed
@@ -280,14 +273,14 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                         DiagnosticRow(
                             icon = Icons.Default.WaterDrop,
                             title = "Oil Life",
-                            subtitle = "VISCOSITY OPTIMAL ${uiState.oilHealth.toInt()}%",
+                            subtitle = "LEVEL ${uiState.oilHealth.toInt()}% • RATE ${"%.2f".format(uiState.fuelRate)} L/h",
                             status = if (uiState.oilWarning) "LOW" else "NORMAL",
                             statusColor = if (uiState.oilWarning) StatusOrange else StatusGreen
                         )
                         DiagnosticRow(
                             icon = Icons.Default.BatteryChargingFull,
                             title = "Battery Health",
-                            subtitle = "CHARGE: ${uiState.batteryHealth.toInt()}%",
+                            subtitle = "CHARGE ${uiState.batteryHealth.toInt()}% • ${"%.2f".format(uiState.batteryVoltage)} V",
                             status = if (uiState.batteryAlert) "WARNING" else "NORMAL",
                             statusColor = if (uiState.batteryAlert) StatusOrange else StatusGreen
                         )

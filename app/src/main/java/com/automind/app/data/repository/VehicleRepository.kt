@@ -1,12 +1,16 @@
 package com.automind.app.data.repository
 
+import android.os.SystemClock
 import android.util.Log
 import com.automind.app.data.model.*
 import com.automind.app.data.network.AutoMindApiService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -15,6 +19,7 @@ class VehicleRepository(
 ) {
     companion object {
         private const val TAG = "VehicleRepository"
+        private const val MIN_FETCH_GAP_MS = 3000L
     }
 
     private val _uiState = MutableStateFlow(VehicleStateSummary())
@@ -39,6 +44,9 @@ class VehicleRepository(
 
     // Active car ID for backend calls
     private var _activeCarId: String = "default"
+    private val requestMutex = Mutex()
+    private var lastFetchCarId: String? = null
+    private var lastFetchAtMs: Long = 0L
 
     // Disabled mock fallback to strictly test new render backend
     private var useMockFallback = false
@@ -72,41 +80,57 @@ class VehicleRepository(
         )
     }
 
-    suspend fun fetchCurrentState(): Boolean {
-        try {
-            val response = withContext(Dispatchers.IO) {
-                apiService.getState(System.currentTimeMillis(), _activeCarId)
+    suspend fun fetchCurrentState(force: Boolean = false): Boolean {
+        return requestMutex.withLock {
+            val currentCarId = _activeCarId
+            val now = SystemClock.elapsedRealtime()
+            if (!force && currentCarId == lastFetchCarId && now - lastFetchAtMs < MIN_FETCH_GAP_MS) {
+                return@withLock _isConnected.value
             }
-            processBackendResponse(response)
-            _isConnected.value = true
-            Log.d(TAG, "fetchCurrentState success (carId=$_activeCarId)")
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchCurrentState failed", e)
-            _isConnected.value = false
-            if (useMockFallback) {
-                applyMockState(jitter = true)
+
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    apiService.getState(System.currentTimeMillis(), currentCarId)
+                }
+                processBackendResponse(response)
+                lastFetchCarId = currentCarId
+                lastFetchAtMs = SystemClock.elapsedRealtime()
+                _isConnected.value = true
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "fetchCurrentState failed", e)
+                _isConnected.value = false
+                if (useMockFallback) {
+                    applyMockState(jitter = true)
+                }
+                false
             }
-            return false
         }
     }
 
     suspend fun resetSession(carId: String = _activeCarId, payload: Map<String, String> = emptyMap()): Boolean {
-        try {
-            val response = withContext(Dispatchers.IO) {
-                apiService.resetSession(carId, payload)
+        return requestMutex.withLock {
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    apiService.resetSession(carId, payload)
+                }
+                processBackendResponse(response)
+                lastFetchCarId = carId
+                lastFetchAtMs = SystemClock.elapsedRealtime()
+                _isConnected.value = true
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "resetSession failed", e)
+                _isConnected.value = false
+                if (useMockFallback) {
+                    applyMockState(jitter = true)
+                }
+                false
             }
-            processBackendResponse(response)
-            _isConnected.value = true
-            Log.d(TAG, "resetSession success: carId=$carId")
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "resetSession failed", e)
-            _isConnected.value = false
-            if (useMockFallback) {
-                applyMockState(jitter = true)
-            }
-            return false
         }
     }
 
@@ -115,28 +139,34 @@ class VehicleRepository(
         value: Double = 0.0,
         reason: String = "Auto-run AI cycle"
     ): Boolean {
-        try {
-            val response = withContext(Dispatchers.IO) {
-                apiService.executeStep(
-                    StepRequest(
-                        actionType,
-                        value,
-                        reason
-                    ),
-                    _activeCarId
-                )
+        return requestMutex.withLock {
+            try {
+                val normalizedValue = value.coerceIn(0.0, 0.99)
+                val response = withContext(Dispatchers.IO) {
+                    apiService.executeStep(
+                        StepRequest(
+                            actionType,
+                            normalizedValue,
+                            reason
+                        ),
+                        _activeCarId
+                    )
+                }
+                processBackendResponse(response)
+                lastFetchCarId = _activeCarId
+                lastFetchAtMs = SystemClock.elapsedRealtime()
+                _isConnected.value = true
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "executeAiCycle failed", e)
+                _isConnected.value = false
+                if (useMockFallback) {
+                    applyMockState(jitter = true)
+                }
+                false
             }
-            processBackendResponse(response)
-            _isConnected.value = true
-            Log.d(TAG, "executeAiCycle success: actionType=$actionType value=$value carId=$_activeCarId")
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "executeAiCycle failed", e)
-            _isConnected.value = false
-            if (useMockFallback) {
-                applyMockState(jitter = true)
-            }
-            return false
         }
     }
 
@@ -148,6 +178,15 @@ class VehicleRepository(
         raw.replace(" auto", "", ignoreCase = true).trim()
 
     private fun prettyRiskLabel(raw: String): String = raw.replace("_", " ")
+
+    private fun backendPercent(raw: Double?): Int? =
+        raw?.let { value ->
+            if (value <= 1.0) {
+                (value * 100).toInt()
+            } else {
+                value.toInt()
+            }
+        }?.coerceIn(0, 100)
 
     private fun nextLikelyRiskShift(predictions: MlPredictions?): String {
         val risks = listOfNotNull(
@@ -167,57 +206,79 @@ class VehicleRepository(
 
     private fun processBackendResponse(response: BackendStateResponse) {
         val obs = response.observation
+        val signals = obs?.vehicleSignals
+        val events = obs?.vehicleEvents
         val met = response.metrics
         val inf = response.info
         val dashboard = response.dashboard
         val quick = dashboard?.quickTelemetry ?: response.quickTelemetry
         val trip = dashboard?.trip ?: response.trip
         val health = dashboard?.health ?: response.health
-        val safety = dashboard?.safety
+        val safety = dashboard?.safety ?: response.safety
         val predictions = dashboard?.mlPredictions ?: response.mlPredictions ?: inf?.mlPredictions
-        val maintenance = dashboard?.maintenance
+        val maintenance = dashboard?.maintenance ?: response.maintenance
         val booking = maintenance?.serviceBooking ?: inf?.serviceBooking
-        val recommendation = maintenance?.serviceRecommended
+        val recommendation = maintenance?.serviceRecommended ?: inf?.serviceRecommended
         val identity = dashboard?.vehicle ?: response.vehicle
+        val ecuObd = response.ecu?.obd
+        val resolvedCollisionRisk = safety?.collisionRiskPct?.div(100.0) ?: inf?.collisionRisk
+        val resolvedHealthScore = predictions?.health?.overall
+            ?: backendPercent(health?.overallScore)
+        val resolvedSafetyScore = resolvedCollisionRisk?.let { (1.0 - it).coerceIn(0.0, 1.0) }
+            ?: safety?.drivingSafetyScore?.let { if (it > 1.0) it / 100.0 else it }
+            ?: predictions?.health?.safety?.div(100.0)
 
         val current = stateCache[_activeCarId] ?: _uiState.value
         val summary = current.copy(
             carId = identity?.carId ?: _activeCarId,
             vehicleDisplayName = identity?.name ?: current.vehicleDisplayName,
             vin = identity?.vin ?: current.vin,
-            speed = quick?.speedKmph ?: obs?.speed ?: current.speed,
-            engineTemp = quick?.engineTempC ?: obs?.engineTemp ?: current.engineTemp,
-            rpm = obs?.rpm ?: current.rpm,
-            throttle = obs?.throttle ?: current.throttle,
-            gear = obs?.gear ?: current.gear,
+            speed = quick?.speedKmph ?: signals?.speed ?: obs?.speed ?: current.speed,
+            engineTemp = quick?.engineTempC ?: signals?.coolantTemp ?: obs?.engineTemp ?: current.engineTemp,
+            rpm = signals?.rpm ?: obs?.rpm ?: current.rpm,
+            throttle = signals?.throttle ?: obs?.throttle ?: current.throttle,
+            gear = signals?.gear ?: obs?.gear ?: current.gear,
             gearDisplay = trip?.gearDisplay?.let(::cleanGearDisplay)
-                ?: (obs?.gear?.let { "D$it" } ?: current.gearDisplay),
-            forwardDistance = safety?.distanceToObstacleM ?: obs?.distanceToObstacle ?: current.forwardDistance,
+                ?: ((signals?.gear ?: obs?.gear)?.let { "D$it" } ?: current.gearDisplay),
+            forwardDistance = safety?.distanceToObstacleM ?: signals?.distanceToObstacle ?: obs?.distanceToObstacle ?: current.forwardDistance,
             rangeKm = trip?.rangeKm ?: current.rangeKm,
-            roadCondition = obs?.roadCondition ?: current.roadCondition,
-            oilHealth = obs?.oilLevel ?: current.oilHealth,
-            batteryHealth = health?.batteryHealth?.toDouble() ?: quick?.batteryPct?.toDouble() ?: obs?.batteryHealth ?: current.batteryHealth,
-            engineLoad = obs?.engineLoad ?: current.engineLoad,
-            driveMode = trip?.driveMode ?: obs?.driveMode ?: current.driveMode,
-            driveModeDisplay = trip?.driveModeDisplay ?: obs?.driveMode ?: current.driveModeDisplay,
-            brakeSystemStatus = obs?.failures?.brakeFailure ?: current.brakeSystemStatus,
-            sensorSystemStatus = obs?.failures?.sensorFailure ?: current.sensorSystemStatus,
+            roadCondition = signals?.roadCondition ?: obs?.roadCondition ?: current.roadCondition,
+            oilHealth = signals?.oilLevel ?: obs?.oilLevel ?: current.oilHealth,
+            batteryHealth = predictions?.health?.battery?.toDouble()
+                ?: health?.batteryHealth?.toDouble()
+                ?: quick?.batteryPct?.toDouble()
+                ?: signals?.batteryHealth
+                ?: obs?.batteryHealth
+                ?: current.batteryHealth,
+            engineLoad = signals?.engineLoad ?: obs?.engineLoad ?: current.engineLoad,
+            transmissionLoad = signals?.transmissionLoad ?: obs?.transmissionLoad ?: current.transmissionLoad,
+            fuelRate = signals?.fuelRate ?: obs?.fuelRate ?: current.fuelRate,
+            acceleration = signals?.acceleration ?: obs?.acceleration ?: current.acceleration,
+            batteryVoltage = quick?.batteryV ?: signals?.batteryVoltage ?: current.batteryVoltage,
+            oilTempC = ecuObd?.oilTempC?.toDouble() ?: signals?.oilTemp ?: current.oilTempC,
+            oilPressureKpa = ecuObd?.oilPressureKpa?.toDouble() ?: signals?.oilPressure ?: current.oilPressureKpa,
+            heading = signals?.heading ?: obs?.heading ?: current.heading,
+            driveMode = trip?.driveMode ?: signals?.driveMode ?: obs?.driveMode ?: current.driveMode,
+            driveModeDisplay = trip?.driveModeDisplay ?: signals?.driveMode ?: obs?.driveMode ?: current.driveModeDisplay,
+            brakeSystemStatus = events?.brakeSystemWarning ?: obs?.failures?.brakeFailure ?: current.brakeSystemStatus,
+            sensorSystemStatus = events?.sensorFaultEvent ?: obs?.failures?.sensorFailure ?: current.sensorSystemStatus,
             engineHeatAlert = (health?.engineStatus == "CRITICAL" || health?.engineStatus == "ATTENTION")
+                || events?.engineOverheatWarning == true
                 || obs?.failures?.engineOverheating == true
-                || (quick?.engineTempC ?: obs?.engineTemp ?: 0.0) >= 105.0,
-            oilWarning = obs?.failures?.lowOil ?: current.oilWarning,
-            batteryAlert = obs?.failures?.batteryIssue ?: current.batteryAlert,
+                || (quick?.engineTempC ?: signals?.coolantTemp ?: obs?.engineTemp ?: 0.0) >= 105.0,
+            oilWarning = events?.lowOilWarning ?: obs?.failures?.lowOil ?: current.oilWarning,
+            batteryAlert = events?.lowBatteryEvent ?: obs?.failures?.batteryIssue ?: current.batteryAlert,
             engineStatus = health?.engineStatus ?: current.engineStatus,
-            safetyScore = (safety?.drivingSafetyScore?.let { if (it > 1.0) it / 100.0 else it }) ?: met?.safetyScore ?: current.safetyScore,
+            safetyScore = resolvedSafetyScore ?: met?.safetyScore ?: current.safetyScore,
             efficiencyScore = met?.efficiencyScore ?: current.efficiencyScore,
             diagnosticConfidence = met?.diagnosisScore ?: current.diagnosticConfidence,
             decisionStability = met?.sequenceScore ?: current.decisionStability,
-            healthScore = (health?.overallScore ?: inf?.healthScore)?.let { if (it <= 1.0) (it * 100).toInt() else it.toInt() } ?: current.healthScore,
-            collisionRisk = (safety?.collisionRiskPct?.toDouble()?.div(100.0)) ?: inf?.collisionRisk ?: current.collisionRisk,
+            healthScore = resolvedHealthScore ?: backendPercent(inf?.healthScore) ?: current.healthScore,
+            collisionRisk = resolvedCollisionRisk ?: current.collisionRisk,
             overrideDetected = inf?.overrideActive ?: current.overrideDetected,
-            vehicleStatus = health?.status ?: inf?.outcome ?: current.vehicleStatus,
-            fuelLevel = trip?.fuelLevelPct ?: current.fuelLevel,
-            distanceDriven = trip?.odometerKm ?: current.distanceDriven,
+            vehicleStatus = identity?.status ?: health?.status ?: inf?.outcome ?: current.vehicleStatus,
+            fuelLevel = trip?.fuelLevelPct ?: signals?.fuelLevel ?: current.fuelLevel,
+            distanceDriven = trip?.odometerKm ?: signals?.odometerKm ?: current.distanceDriven,
             serviceDueNow = maintenance?.serviceDueNow ?: current.serviceDueNow,
             serviceBookingStatus = booking?.status,
             predictedFailure = (health?.predictedFailure ?: predictions?.primaryFailure ?: current.predictedFailure).replace("_", " "),
@@ -236,6 +297,7 @@ class VehicleRepository(
             serviceCenterAddress = booking?.centerAddress ?: recommendation?.address ?: "",
             serviceCenterPhone = booking?.centerPhone ?: recommendation?.phone ?: "",
             serviceDistanceKm = booking?.distanceKm ?: recommendation?.distanceKm ?: 0.0,
+            serviceRemainingKm = maintenance?.remainingKm ?: recommendation?.remainingKm ?: current.serviceRemainingKm,
             serviceEtaMinutes = booking?.etaMinutes ?: recommendation?.etaMinutes ?: 0,
             serviceScheduledDate = booking?.scheduledDate ?: "",
             serviceScheduledTime = booking?.scheduledTime ?: "",
@@ -244,125 +306,75 @@ class VehicleRepository(
             serviceRequestedDate = booking?.requestedDate ?: "",
             serviceRequestedTime = booking?.requestedTime ?: "",
             serviceBookingEditable = booking?.editable ?: false,
-            vehicleLat = booking?.vehicleLat ?: recommendation?.vehicleLat ?: obs?.latitude ?: current.vehicleLat,
-            vehicleLon = booking?.vehicleLon ?: recommendation?.vehicleLon ?: obs?.longitude ?: current.vehicleLon
+            vehicleLat = booking?.vehicleLat ?: recommendation?.vehicleLat ?: signals?.latitude ?: obs?.latitude ?: current.vehicleLat,
+            vehicleLon = booking?.vehicleLon ?: recommendation?.vehicleLon ?: signals?.longitude ?: obs?.longitude ?: current.vehicleLon,
+            dtcCount = ecuObd?.dtcCount ?: events?.dtcCount ?: current.dtcCount,
+            milActive = (ecuObd?.milStatus == 1) || events?.milStatus == true,
+            ignitionOn = (ecuObd?.ignitionStatus == 1) || signals?.ignitionOn == true,
+            chargingActive = (ecuObd?.chargingStatus == 1) || signals?.chargingActive == true
         )
 
         _uiState.value = summary
+        stateCache[_activeCarId] = summary
         stateCache[summary.carId] = summary
-        generateAlertsAndRecommendations(summary, dashboard?.activeAlerts ?: response.activeAlerts)
+        generateAlertsAndRecommendations(
+            summary,
+            dashboard?.activeAlerts ?: response.activeAlerts ?: inf?.activeAlerts
+        )
     }
 
     private fun generateAlertsAndRecommendations(state: VehicleStateSummary, backendAlerts: List<BackendAlert>? = null) {
-        if (!backendAlerts.isNullOrEmpty()) {
-            _alerts.value = backendAlerts.map { alert ->
-                AlertItem(
-                    id = UUID.randomUUID().toString(),
-                    title = alert.title ?: "Vehicle Alert",
-                    message = alert.message ?: "",
-                    priority = when ((alert.severity ?: "").uppercase()) {
-                        "CRITICAL" -> AlertPriority.CRITICAL
-                        "WARN", "WARNING" -> AlertPriority.WARNING
-                        "INFO" -> AlertPriority.INFO
-                        else -> AlertPriority.SAFETY
-                    }
-                )
-            }
+        val mappedAlerts = backendAlerts.orEmpty().map { alert ->
+            AlertItem(
+                id = listOfNotNull(
+                    alert.code,
+                    alert.severity,
+                    alert.title,
+                    alert.message
+                ).joinToString("|").ifBlank { "backend-alert" },
+                title = alert.title ?: "Vehicle Alert",
+                message = alert.message ?: "",
+                priority = when ((alert.severity ?: "").uppercase()) {
+                    "CRITICAL" -> AlertPriority.CRITICAL
+                    "WARN", "WARNING" -> AlertPriority.WARNING
+                    "INFO" -> AlertPriority.INFO
+                    else -> AlertPriority.SAFETY
+                }
+            )
+        }
 
-            val topAlert = backendAlerts.first()
-            _recommendation.value = RecommendationItem(
-                message = topAlert.message ?: "Vehicle health update available.",
+        val topAlert = backendAlerts.orEmpty().firstOrNull()
+        val nextRecommendation = when {
+            topAlert != null -> RecommendationItem(
+                message = topAlert.message ?: "Backend reported a live vehicle alert.",
                 actionText = when {
                     state.serviceBookingStatus != null -> "SERVICE SCHEDULED"
-                    state.serviceDueNow -> "Schedule Service"
-                    (topAlert.code ?: "").contains("COLLISION", ignoreCase = true) -> "Slow Down"
-                    else -> "Inspect Vehicle"
+                    state.serviceDueNow -> "SCHEDULE SERVICE"
+                    (topAlert.code ?: "").contains("COLLISION", ignoreCase = true) -> "SLOW DOWN"
+                    else -> "INSPECT VEHICLE"
                 },
                 isCritical = (topAlert.severity ?: "").equals("CRITICAL", ignoreCase = true)
             )
-            alertsCache[state.carId] = _alerts.value
-            recommendationCache[state.carId] = _recommendation.value
-            return
-        }
-
-        val newAlerts = mutableListOf<AlertItem>()
-        var recMsg = "Vehicle reading steady. Continue driving safely."
-        var action: String? = null
-        var isCrit = false
-
-        if (state.engineHeatAlert || state.engineTemp > 100.0) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "High Engine Temperature",
-                    "Engine heat exceeds safe limits.",
-                    AlertPriority.CRITICAL
-                )
+            state.serviceBookingId.isNotBlank() -> RecommendationItem(
+                message = "Service booking ${state.serviceBookingId} is active for ${state.serviceCenterName}.",
+                actionText = "VIEW BOOKING"
             )
-            recMsg = "High engine temperature detected. Stop the vehicle safely and inspect immediately."
-            isCrit = true
-            action = "Request Service"
-        } else if (state.brakeSystemStatus) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "Brake System Issue",
-                    "Braking efficiency compromised.",
-                    AlertPriority.CRITICAL
-                )
+            state.serviceDueNow -> RecommendationItem(
+                message = "Backend maintenance window is due within ${state.serviceRemainingKm} km.",
+                actionText = "SCHEDULE SERVICE"
             )
-            recMsg = "Brake system anomaly detected. Reduce speed and stop vehicle safely."
-            isCrit = true
-            action = "Emergency Contact"
-        } else if (state.collisionRisk > 0.7) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "Obstacle Risk",
-                    "High probability of forward collision.",
-                    AlertPriority.CRITICAL
-                )
-            )
-            recMsg = "Obstacle risk detected. Reduce speed and maintain braking readiness."
-            isCrit = true
-        } else if (state.batteryAlert || state.batteryHealth < 30.0) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "Battery Inspection",
-                    "Output voltage irregular.",
-                    AlertPriority.WARNING
-                )
-            )
-            recMsg = "Battery health needs inspection. Avoid long trips until checked."
-            action = "Book Service"
-        } else if (state.oilWarning || state.oilHealth < 20.0) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "Low Oil Level",
-                    "Engine oil below optimal threshold.",
-                    AlertPriority.WARNING
-                )
-            )
-            recMsg = "Oil level is low. Service is recommended soon."
-            action = "Book Maintenance"
-        }
-
-        if (state.overrideDetected) {
-            newAlerts.add(
-                AlertItem(
-                    UUID.randomUUID().toString(),
-                    "Driver Override Active",
-                    "Manual control inputs overriding AI.",
-                    AlertPriority.SAFETY
-                )
+            else -> RecommendationItem(
+                message = "No live backend alerts. Drive mode ${state.driveModeDisplay} with ${state.rangeKm} km range remaining.",
+                actionText = null
             )
         }
 
-        val combined = (newAlerts + _alerts.value).distinctBy { it.title }.take(10)
-        _alerts.value = combined
-        _recommendation.value = RecommendationItem(recMsg, action, isCrit)
+        if (_alerts.value != mappedAlerts) {
+            _alerts.value = mappedAlerts
+        }
+        if (_recommendation.value != nextRecommendation) {
+            _recommendation.value = nextRecommendation
+        }
         alertsCache[state.carId] = _alerts.value
         recommendationCache[state.carId] = _recommendation.value
     }

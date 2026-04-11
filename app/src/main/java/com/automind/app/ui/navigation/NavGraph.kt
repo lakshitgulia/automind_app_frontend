@@ -52,6 +52,13 @@ fun AutoMindNavHost(
                 repository = repository,
                 userPreferences = userPreferences,
                 vehiclePreferences = vehiclePreferences,
+                onNavigateToAlerts = {
+                    navController.navigate(Screen.Alerts.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onNavigateToVehicle = {
                     navController.navigate(Screen.Vehicle.route) {
                         popUpTo(navController.graph.startDestinationId) { saveState = true }

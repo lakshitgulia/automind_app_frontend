@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         // IMPORTANT: point this to the latest backend deployment that serves /state, /reset, /step.
         private const val BACKEND_BASE_URL = "https://khushi1811-automind-rl.hf.space/"
+        private const val POLLING_INTERVAL_MS = 6000L
     }
 
     // Simple manual DI for the hackathon
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var userPreferences: UserPreferences
     private lateinit var vehiclePreferences: VehiclePreferences
     private var pollingJob: Job? = null
+    private var shouldPollCurrentRoute: Boolean = false
 
     private fun vehicleSeedPayload() = vehiclePreferences.getPrimaryVehicle()?.let { vehicle ->
         mapOf(
@@ -86,7 +88,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                delay(2000L)
+                delay(POLLING_INTERVAL_MS)
             }
         }
     }
@@ -111,9 +113,15 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                // Continuous telemetry loop — only when logged in
+                val shouldPoll = currentRoute == Screen.Home.route ||
+                    currentRoute == Screen.Vehicle.route ||
+                    currentRoute == Screen.Alerts.route
+
+                shouldPollCurrentRoute = shouldPoll
+
+                // Continuous telemetry loop — only on backend-driven screens
                 LaunchedEffect(currentRoute) {
-                    if (currentRoute != null && currentRoute != Screen.Login.route) {
+                    if (shouldPoll) {
                         startPolling()
                     } else {
                         stopPolling()
@@ -134,6 +142,23 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onStop() {
+        stopPolling()
+        super.onStop()
+    }
+
+    override fun onPause() {
+        stopPolling()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (shouldPollCurrentRoute) {
+            startPolling()
         }
     }
 

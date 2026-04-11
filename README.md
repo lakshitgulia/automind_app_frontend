@@ -1,70 +1,98 @@
-# AutoMind App Frontend
+# AutoMind Android Frontend
 
-AutoMind is an Android app built with Jetpack Compose for vehicle monitoring, predictive maintenance insights, alert handling, service scheduling flows, and locally stored user and vehicle management.
+AutoMind is an Android app built with Jetpack Compose for live vehicle telemetry, predictive maintenance insights, smart alerts, and service-booking flows powered by a remote backend.
 
-## Overview
+## What This Repo Contains
 
-The app currently includes:
+This repository is the Android frontend only.
 
-- Local sign up, login, logout, and permanent account deletion
-- Per-account vehicle storage using on-device persistence
-- Home dashboard with live telemetry, prediction summaries, and AI insight cards
-- Vehicle diagnostics screen with health, telemetry, and risk indicators
-- Alerts screen with maintenance, service booking, reschedule, and cancel flows
-- Profile screen for account details and vehicle management
+- Local user auth and account persistence
+- Per-account vehicle storage on device
+- Live dashboard screens backed by remote telemetry
+- Predictive maintenance and alert rendering
+- Service schedule, reschedule, and cancel flows
 
-## Current behavior
+Khushi's backend lives in a separate repository and is not part of this codebase.
 
-### Authentication and local storage
+## Current Product Flow
 
-- User accounts are stored locally using `SharedPreferences`
-- Login and signup are frontend/local only
-- Account deletion removes:
-  - the currently logged-in account
-  - stored account data for that account
-  - stored vehicle data for that account
-- Vehicle data is stored per account bucket, not globally for all users
+After login, the app reads the locally selected primary vehicle and uses its license plate as the active backend `car_id`.
 
-### Vehicle monitoring
+The frontend then:
 
-- The app polls backend state repeatedly while the user is logged in and not on the login screen
-- Polling starts only when the current account has at least one saved vehicle
-- The active vehicle is selected from the locally saved primary vehicle
-- Dashboard and diagnostics UI can display telemetry and prediction data such as:
-  - speed
-  - engine temperature
-  - battery percentage
-  - drive mode
-  - range
-  - gear / drive mode display
-  - failure prediction summaries
-  - health and service information
+1. fetches live backend state
+2. renders backend-driven data across Home, Vehicle, and Alerts
+3. polls while the user is on telemetry screens
+4. stops polling in background to reduce load and ANR risk
 
-### Alerts and service flows
+## Main Screens
 
-- The alerts screen shows warning, safety, info, and critical alert content
-- Service flows support schedule, reschedule, and cancel behavior
-- Service booking UI can show booking state like `BOOKED`
-- Vehicle location labels use Android `Geocoder` when available and fall back to formatted coordinates
+### Home
 
-### UI state
+- greeting and connection status
+- registered vehicle identity
+- drive mode and range
+- live system snapshot
+- AI recommendation card
+- quick telemetry cards
 
-- Profile shows a `VERIFIED` badge
-- Profile vehicle cards focus on core identity and status information
-- Home includes quick telemetry and AI insight sections
+### Vehicle
 
-## Tech stack
+- overall health score
+- predictive maintenance summary
+- telemetry and diagnostics
+- failure-risk forecast
+
+### Alerts
+
+- backend alert grouping by severity
+- maintenance planning
+- service booking details
+- edit and cancel booking flows
+
+### Profile
+
+- local account details
+- saved vehicles
+- primary vehicle selection
+- logout and account deletion
+
+## Backend Integration
+
+The app is configured to use:
+
+`https://khushi1811-automind-rl.hf.space/`
+
+Primary endpoints used:
+
+- `/state`
+- `/reset`
+- `/step`
+
+The frontend maps backend payloads including:
+
+- vehicle identity
+- quick telemetry
+- trip summary
+- health summary
+- safety summary
+- maintenance and service booking data
+- ML predictions
+- active alerts
+- observation and ECU data
+
+## Tech Stack
 
 - Kotlin
 - Jetpack Compose
 - Material 3
 - Navigation Compose
 - Retrofit
-- Moshi
+- Moshi with generated adapters
 - OkHttp
 - Kotlin Coroutines
 
-## Project structure
+## Project Structure
 
 ```text
 app/src/main/java/com/automind/app/
@@ -86,67 +114,58 @@ app/src/main/java/com/automind/app/
 └── MainActivity.kt
 ```
 
-## Important files
+## Important Files
 
 - `app/src/main/java/com/automind/app/MainActivity.kt`
-  - app entry point, Retrofit setup, backend base URL, and polling lifecycle
+  - backend wiring and polling lifecycle
 - `app/src/main/java/com/automind/app/data/network/AutoMindApiService.kt`
-  - backend API contract
+  - Retrofit API contract
 - `app/src/main/java/com/automind/app/data/repository/VehicleRepository.kt`
-  - backend response mapping, UI state management, alerts, and recommendations
+  - backend mapping, UI state, alerts, and service actions
 - `app/src/main/java/com/automind/app/data/local/UserPreferences.kt`
-  - local account storage, login flow, and delete-account support
+  - local account persistence
 - `app/src/main/java/com/automind/app/data/local/VehiclePreferences.kt`
-  - per-account vehicle persistence and primary vehicle handling
+  - local vehicle persistence and primary-vehicle selection
 - `app/src/main/java/com/automind/app/ui/navigation/NavGraph.kt`
-  - app navigation graph and bottom navigation
+  - app navigation
 
-## Backend
+## Build And Run
 
-The app is currently configured to use:
+Requirements:
 
-`https://khushi1811-automind-rl.hf.space/`
+- Android Studio
+- Java 17
+- Android SDK 34
+- internet access on emulator or device
 
-Core endpoints used by the app include:
+Useful commands:
 
-- `/state`
-- `/reset`
-- `/step`
+```bash
+./gradlew :app:compileDebugKotlin
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+```
 
-Additional endpoints defined in the API interface include:
+## Recent Frontend Improvements
 
-- `/`
-- `/health`
-- `/tasks`
-- `/schema`
+- moved screens to backend-driven values instead of fixed placeholders
+- reduced UI load by throttling and serializing polling
+- service actions now match live backend validation rules
+- removed redundant or noisy UI elements
+- improved Home and Alerts screen clarity
 
-## Requirements
+## Strong Next Enhancements
 
-To build and run the project successfully, your local environment should have:
-
-- Android Studio with Gradle sync support
-- Android SDK Platform 34
-- Build tools compatible with `compileSdk = 34`
-- Java 17 / Gradle JDK 17-compatible setup
-
-Project build settings currently include:
-
-- `compileSdk = 34`
-- `minSdk = 26`
-- `targetSdk = 34`
-- Kotlin JVM target `17`
-
-## Running the app
-
-1. Open the project in Android Studio.
-2. Let Gradle sync finish using the included Gradle wrapper.
-3. Make sure the project uses a Java 17-compatible Gradle JDK.
-4. Ensure an emulator or physical device has working internet access, since live telemetry depends on the configured backend.
-5. Run the `app` module.
+- Add a backend configuration layer with `BuildConfig` or flavors so the API URL is not hardcoded in `MainActivity`.
+- Move manual dependency creation out of `MainActivity` into Hilt or a small DI container.
+- Replace `SharedPreferences` auth and vehicle storage with Room or DataStore for stronger state handling.
+- Add repository and mapper tests for backend payload parsing and service-action flows.
+- Add loading, empty, and retry states per screen instead of relying mostly on snackbars.
+- Add a small debug panel for current `car_id`, last fetch time, backend connection state, and last service action result.
+- Introduce screenshots and a short demo section in this README for stronger portfolio presentation.
 
 ## Notes
 
-- Account management is frontend/local-storage based, not remote-auth based
-- Live values depend on backend reachability and emulator/device network health
-- Release signing is only configured when `keystore.properties` is present locally
-- `local.properties`, `keystore.properties`, and keystore files are intentionally local-only
+- This repo is the frontend app only.
+- Backend behavior depends on the live Hugging Face deployment.
+- Release signing depends on local signing files and should stay local.

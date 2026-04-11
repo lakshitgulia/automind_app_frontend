@@ -1,6 +1,5 @@
 package com.automind.app.ui.components
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -10,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -351,20 +349,10 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun PulsingDot(color: Color = AccentCyan, size: Dp = 8.dp) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
     Box(
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(color.copy(alpha = alpha))
+            .background(color.copy(alpha = 0.8f))
     )
 }

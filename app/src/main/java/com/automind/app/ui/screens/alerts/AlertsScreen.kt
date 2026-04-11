@@ -1,6 +1,4 @@
 package com.automind.app.ui.screens.alerts
-
-import android.location.Geocoder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,8 +20,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WaterDrop
@@ -33,7 +29,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -50,13 +45,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,28 +67,25 @@ import com.automind.app.ui.theme.StatusOrange
 import com.automind.app.ui.theme.StatusRed
 import com.automind.app.ui.theme.TextPrimary
 import com.automind.app.ui.theme.TextSecondary
-import java.util.Locale
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertsScreen(repository: VehicleRepository) {
     val alerts by repository.alerts.collectAsState()
     val uiState by repository.uiState.collectAsState()
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditDialog by remember { mutableStateOf(false) }
     var requestedDate by remember { mutableStateOf("") }
     var requestedTime by remember { mutableStateOf("") }
-    val liveVehicleLocation by produceState(
-        initialValue = formatCoordinates(uiState.vehicleLat, uiState.vehicleLon),
-        uiState.vehicleLat,
-        uiState.vehicleLon
-    ) {
-        value = resolveLocationLabel(context, uiState.vehicleLat, uiState.vehicleLon)
+    var serviceActionInFlight by remember { mutableStateOf(false) }
+    val liveVehicleLocation = remember(uiState.vehicleLat, uiState.vehicleLon) {
+        formatCoordinates(uiState.vehicleLat, uiState.vehicleLon)
+    }
+
+    LaunchedEffect(uiState.carId) {
+        repository.fetchCurrentState(force = true)
     }
 
     LaunchedEffect(uiState.serviceScheduledDate, uiState.serviceScheduledTime, uiState.serviceRequestedDate, uiState.serviceRequestedTime) {
@@ -106,20 +96,12 @@ fun AlertsScreen(repository: VehicleRepository) {
     val criticalAlerts = alerts.filter { it.priority == AlertPriority.CRITICAL }
     val warningAlerts = alerts.filter { it.priority == AlertPriority.WARNING }
     val safetyAlerts = alerts.filter { it.priority == AlertPriority.SAFETY }
+    val infoAlerts = alerts.filter { it.priority == AlertPriority.INFO }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {},
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
-                    }
-                },
-                actions = {
-                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = AccentCyan)
-                    Spacer(modifier = Modifier.width(16.dp))
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
             )
         },
@@ -168,9 +150,9 @@ fun AlertsScreen(repository: VehicleRepository) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (alerts.isEmpty()) {
-                                "All systems operating within normal parameters."
+                                "No active backend alerts for ${uiState.vehicleDisplayName}."
                             } else {
-                                "Real-time telemetry analysis detected immediate attention requirements."
+                                "Backend currently reports ${alerts.size} live alert(s) for this vehicle."
                             },
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                             color = TextSecondary
@@ -268,6 +250,32 @@ fun AlertsScreen(repository: VehicleRepository) {
                 }
             }
 
+            if (infoAlerts.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = AccentCyan, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Service / Info",
+                            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                items(infoAlerts) { alert ->
+                    AlertCard(
+                        icon = Icons.Default.CalendarMonth,
+                        title = alert.title,
+                        description = alert.message,
+                        priority = "INFO",
+                        priorityColor = AccentCyan,
+                        accentColor = AccentCyan
+                    )
+                }
+            }
+
             if (alerts.isEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -290,7 +298,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    "No active alerts. Vehicle is healthy.",
+                                    "No live alerts are coming from the backend right now.",
                                     style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
@@ -327,7 +335,7 @@ fun AlertsScreen(repository: VehicleRepository) {
                         Text(
                             if (hasBooking) "A service slot has been reserved for this vehicle based on current diagnostics."
                             else if (uiState.serviceDueNow) "Backend diagnostics say this vehicle is due for service soon."
-                            else "Track maintenance windows proactively based on live diagnostics and health degradation.",
+                            else "Next backend maintenance window is in ${uiState.serviceRemainingKm} km.",
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -395,6 +403,11 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
+                            Text(
+                                text = "Maintenance due in ${uiState.serviceRemainingKm} km",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -405,14 +418,30 @@ fun AlertsScreen(repository: VehicleRepository) {
                             Button(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    if (!hasBooking) {
-                                        coroutineScope.launch {
-                                            repository.executeAiCycle(
-                                                actionType = "request_service",
-                                                value = 1.0,
-                                                reason = "User requested service from alerts screen"
-                                            )
-                                            snackbarHostState.showSnackbar("Service scheduled successfully")
+                                    when {
+                                        serviceActionInFlight -> Unit
+                                        hasBooking && uiState.serviceBookingEditable -> showEditDialog = true
+                                        hasBooking -> {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Booking details are already shown here")
+                                            }
+                                        }
+                                        else -> {
+                                            coroutineScope.launch {
+                                                serviceActionInFlight = true
+                                                val success = repository.executeAiCycle(
+                                                    actionType = "request_service",
+                                                    value = 0.99,
+                                                    reason = "User requested service from alerts screen"
+                                                )
+                                                if (success) {
+                                                    repository.fetchCurrentState(force = true)
+                                                    snackbarHostState.showSnackbar("Service scheduled successfully")
+                                                } else {
+                                                    snackbarHostState.showSnackbar("Unable to schedule service right now")
+                                                }
+                                                serviceActionInFlight = false
+                                            }
                                         }
                                     }
                                 },
@@ -420,18 +449,24 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(
-                                    if (hasBooking) "BOOKED" else "SCHEDULE NOW",
+                                    if (hasBooking) "VIEW" else if (serviceActionInFlight) "WORKING..." else "SCHEDULE NOW",
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                                if (!hasBooking) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
                             }
                             if (hasBooking && uiState.serviceBookingEditable) {
                                 OutlinedButton(
                                     modifier = Modifier.weight(1f),
-                                    onClick = { showEditDialog = true },
+                                    onClick = {
+                                        if (!serviceActionInFlight) {
+                                            showEditDialog = true
+                                        }
+                                    },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCyan)
                                 ) {
@@ -440,20 +475,32 @@ fun AlertsScreen(repository: VehicleRepository) {
                                 OutlinedButton(
                                     modifier = Modifier.weight(1f),
                                     onClick = {
-                                        coroutineScope.launch {
-                                            repository.executeAiCycle(
+                                        if (!serviceActionInFlight) {
+                                            coroutineScope.launch {
+                                                serviceActionInFlight = true
+                                                val success = repository.executeAiCycle(
                                                 actionType = "cancel_service",
-                                                value = 1.0,
+                                                value = 0.99,
                                                 reason = "User cancelled service booking"
                                             )
-                                            repository.fetchCurrentState()
-                                            snackbarHostState.showSnackbar("Service cancelled successfully")
+                                                if (success) {
+                                                    repository.fetchCurrentState(force = true)
+                                                    snackbarHostState.showSnackbar("Service cancelled successfully")
+                                                } else {
+                                                    snackbarHostState.showSnackbar("Unable to cancel service right now")
+                                                }
+                                                serviceActionInFlight = false
+                                            }
                                         }
                                     },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed)
                                 ) {
-                                    Text("CANCEL", fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text(
+                                        if (serviceActionInFlight) "CANCELLING..." else "CANCEL",
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
@@ -473,13 +520,19 @@ fun AlertsScreen(repository: VehicleRepository) {
             onConfirm = { date, time ->
                 showEditDialog = false
                 coroutineScope.launch {
-                    repository.executeAiCycle(
+                    serviceActionInFlight = true
+                    val success = repository.executeAiCycle(
                         actionType = "reschedule_service",
-                        value = 1.0,
+                        value = 0.99,
                         reason = "requested_date=$date;requested_time=$time"
                     )
-                    repository.fetchCurrentState()
-                    snackbarHostState.showSnackbar("Service rescheduled successfully")
+                    if (success) {
+                        repository.fetchCurrentState(force = true)
+                        snackbarHostState.showSnackbar("Service rescheduled successfully")
+                    } else {
+                        snackbarHostState.showSnackbar("Unable to reschedule service right now")
+                    }
+                    serviceActionInFlight = false
                 }
             }
         )
@@ -551,25 +604,4 @@ private fun EditServiceDialog(
 private fun formatCoordinates(latitude: Double, longitude: Double): String {
     if (latitude == 0.0 && longitude == 0.0) return "Unavailable"
     return "${"%.5f".format(latitude)}, ${"%.5f".format(longitude)}"
-}
-
-private suspend fun resolveLocationLabel(
-    context: android.content.Context,
-    latitude: Double,
-    longitude: Double
-): String = withContext(Dispatchers.IO) {
-    if (latitude == 0.0 && longitude == 0.0) return@withContext "Unavailable"
-    if (!Geocoder.isPresent()) return@withContext formatCoordinates(latitude, longitude)
-
-    runCatching {
-        @Suppress("DEPRECATION")
-        Geocoder(context, Locale.getDefault()).getFromLocation(latitude, longitude, 1)
-            ?.firstOrNull()
-    }.getOrNull()?.let { address ->
-        listOfNotNull(
-            address.subLocality?.takeIf { it.isNotBlank() },
-            address.locality?.takeIf { it.isNotBlank() },
-            address.adminArea?.takeIf { it.isNotBlank() }
-        ).distinct().joinToString(", ").takeIf { it.isNotBlank() }
-    } ?: formatCoordinates(latitude, longitude)
 }

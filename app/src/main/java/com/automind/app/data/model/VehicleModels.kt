@@ -10,13 +10,16 @@ data class BackendStateResponse(
     @Json(name = "quick_telemetry") val quickTelemetry: QuickTelemetry? = null,
     @Json(name = "trip") val trip: TripSummary? = null,
     @Json(name = "health") val health: HealthSummary? = null,
+    @Json(name = "safety") val safety: SafetySummary? = null,
+    @Json(name = "maintenance") val maintenance: MaintenanceSummary? = null,
     @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,
     @Json(name = "active_alerts") val activeAlerts: List<BackendAlert>? = null,
     @Json(name = "observation") val observation: Observation? = null,
     @Json(name = "metrics") val metrics: Metrics? = null,
     @Json(name = "info") val info: StepInfo? = null,
     @Json(name = "reward") val reward: Double? = null,
-    @Json(name = "done") val done: Boolean? = null
+    @Json(name = "done") val done: Boolean? = null,
+    @Json(name = "ecu") val ecu: EcuSnapshot? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -168,6 +171,9 @@ data class Observation(
     @Json(name = "rpm") val rpm: Double? = null,
     @Json(name = "throttle") val throttle: Double? = null,
     @Json(name = "gear") val gear: Int? = null,
+    @Json(name = "transmission_load") val transmissionLoad: Double? = null,
+    @Json(name = "fuel_rate") val fuelRate: Double? = null,
+    @Json(name = "acceleration") val acceleration: Double? = null,
     @Json(name = "engine_temp") val engineTemp: Double? = null,
     @Json(name = "distance_to_obstacle") val distanceToObstacle: Double? = null,
     @Json(name = "road_condition") val roadCondition: String? = null,
@@ -177,8 +183,74 @@ data class Observation(
     @Json(name = "drive_mode") val driveMode: String? = null,
     @Json(name = "latitude") val latitude: Double? = null,
     @Json(name = "longitude") val longitude: Double? = null,
+    @Json(name = "heading") val heading: Double? = null,
     @Json(name = "failures") val failures: FailureFlags? = null,
-    @Json(name = "history") val history: List<HistoryItem>? = null
+    @Json(name = "history") val history: List<HistoryItem>? = null,
+    @Json(name = "vehicle_signals") val vehicleSignals: VehicleSignals? = null,
+    @Json(name = "vehicle_events") val vehicleEvents: VehicleEvents? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class VehicleSignals(
+    @Json(name = "speed") val speed: Double? = null,
+    @Json(name = "rpm") val rpm: Double? = null,
+    @Json(name = "throttle") val throttle: Double? = null,
+    @Json(name = "brake_pedal") val brakePedal: Double? = null,
+    @Json(name = "gear") val gear: Int? = null,
+    @Json(name = "engine_load") val engineLoad: Double? = null,
+    @Json(name = "transmission_load") val transmissionLoad: Double? = null,
+    @Json(name = "fuel_rate") val fuelRate: Double? = null,
+    @Json(name = "acceleration") val acceleration: Double? = null,
+    @Json(name = "coolant_temp") val coolantTemp: Double? = null,
+    @Json(name = "oil_temp") val oilTemp: Double? = null,
+    @Json(name = "oil_pressure") val oilPressure: Double? = null,
+    @Json(name = "oil_level") val oilLevel: Double? = null,
+    @Json(name = "battery_health") val batteryHealth: Double? = null,
+    @Json(name = "battery_voltage") val batteryVoltage: Double? = null,
+    @Json(name = "fuel_level") val fuelLevel: Double? = null,
+    @Json(name = "distance_to_obstacle") val distanceToObstacle: Double? = null,
+    @Json(name = "drive_mode") val driveMode: String? = null,
+    @Json(name = "road_condition") val roadCondition: String? = null,
+    @Json(name = "latitude") val latitude: Double? = null,
+    @Json(name = "longitude") val longitude: Double? = null,
+    @Json(name = "heading") val heading: Double? = null,
+    @Json(name = "odometer_km") val odometerKm: Double? = null,
+    @Json(name = "ignition_on") val ignitionOn: Boolean? = null,
+    @Json(name = "charging_active") val chargingActive: Boolean? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class VehicleEvents(
+    @Json(name = "parked") val parked: Boolean? = null,
+    @Json(name = "trip_active") val tripActive: Boolean? = null,
+    @Json(name = "mil_status") val milStatus: Boolean? = null,
+    @Json(name = "dtc_count") val dtcCount: Int? = null,
+    @Json(name = "dtc_codes") val dtcCodes: List<String>? = null,
+    @Json(name = "overspeed_event") val overspeedEvent: Boolean? = null,
+    @Json(name = "harsh_brake_event") val harshBrakeEvent: Boolean? = null,
+    @Json(name = "low_battery_event") val lowBatteryEvent: Boolean? = null,
+    @Json(name = "charging_fault") val chargingFault: Boolean? = null,
+    @Json(name = "crash_event") val crashEvent: Boolean? = null,
+    @Json(name = "battery_disconnect_event") val batteryDisconnectEvent: Boolean? = null,
+    @Json(name = "engine_overheat_warning") val engineOverheatWarning: Boolean? = null,
+    @Json(name = "low_oil_warning") val lowOilWarning: Boolean? = null,
+    @Json(name = "brake_system_warning") val brakeSystemWarning: Boolean? = null,
+    @Json(name = "sensor_fault_event") val sensorFaultEvent: Boolean? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class EcuSnapshot(
+    @Json(name = "obd") val obd: EcuObd? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class EcuObd(
+    @Json(name = "oil_temp_c") val oilTempC: Int? = null,
+    @Json(name = "oil_pressure_kpa") val oilPressureKpa: Int? = null,
+    @Json(name = "dtc_count") val dtcCount: Int? = null,
+    @Json(name = "ignition_status") val ignitionStatus: Int? = null,
+    @Json(name = "charging_status") val chargingStatus: Int? = null,
+    @Json(name = "mil_status") val milStatus: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -211,6 +283,8 @@ data class StepInfo(
     @Json(name = "override_active") val overrideActive: Boolean? = null,
     @Json(name = "health_score") val healthScore: Double? = null,
     @Json(name = "alerts") val alerts: List<String>? = null,
+    @Json(name = "active_alerts") val activeAlerts: List<BackendAlert>? = null,
+    @Json(name = "service_recommended") val serviceRecommended: ServicePayload? = null,
     @Json(name = "service_booking") val serviceBooking: ServiceBooking? = null,
     @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,
     @Json(name = "fault_phase") val faultPhase: String? = null
@@ -240,6 +314,13 @@ data class VehicleStateSummary(
     val oilHealth: Double = 100.0,
     val batteryHealth: Double = 100.0,
     val engineLoad: Double = 0.0,
+    val transmissionLoad: Double = 0.0,
+    val fuelRate: Double = 0.0,
+    val acceleration: Double = 0.0,
+    val batteryVoltage: Double = 0.0,
+    val oilTempC: Double = 0.0,
+    val oilPressureKpa: Double = 0.0,
+    val heading: Double = 0.0,
     val driveMode: String = "Unknown",
     val driveModeDisplay: String = "Unknown",
     
@@ -279,6 +360,7 @@ data class VehicleStateSummary(
     val serviceCenterAddress: String = "",
     val serviceCenterPhone: String = "",
     val serviceDistanceKm: Double = 0.0,
+    val serviceRemainingKm: Int = 0,
     val serviceEtaMinutes: Int = 0,
     val serviceScheduledDate: String = "",
     val serviceScheduledTime: String = "",
@@ -288,7 +370,11 @@ data class VehicleStateSummary(
     val serviceRequestedTime: String = "",
     val serviceBookingEditable: Boolean = false,
     val vehicleLat: Double = 0.0,
-    val vehicleLon: Double = 0.0
+    val vehicleLon: Double = 0.0,
+    val dtcCount: Int = 0,
+    val milActive: Boolean = false,
+    val ignitionOn: Boolean = false,
+    val chargingActive: Boolean = false
 )
 
 enum class AlertPriority { CRITICAL, WARNING, SAFETY, INFO }

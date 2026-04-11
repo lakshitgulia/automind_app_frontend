@@ -31,20 +31,23 @@ fun HomeScreen(
     repository: VehicleRepository,
     userPreferences: UserPreferences,
     vehiclePreferences: VehiclePreferences,
+    onNavigateToAlerts: () -> Unit = {},
     onNavigateToVehicle: () -> Unit = {}
 ) {
     val uiState by repository.uiState.collectAsState()
+    val alerts by repository.alerts.collectAsState()
     val isConnected by repository.isConnected.collectAsState()
     val recommendation by repository.recommendation.collectAsState()
     val userName = userPreferences.getUserName()
     var vehicles by remember { mutableStateOf(vehiclePreferences.getVehicles()) }
     val primaryVehicle = vehicles.firstOrNull { it.isPrimary } ?: vehicles.firstOrNull()
     val hasVehicle = primaryVehicle != null
+    val registeredVehicleTitle = primaryVehicle?.let {
+        "${it.make} ${it.model} ${it.year}"
+    }
     val backendVehicleTitle = uiState.vehicleDisplayName
         .takeUnless { it.isBlank() || it == "Vehicle" }
-    val vehicleTitle = backendVehicleTitle ?: primaryVehicle?.let {
-        "${it.make} ${it.model} ${it.year}"
-    }.orEmpty()
+    val vehicleTitle = registeredVehicleTitle ?: backendVehicleTitle.orEmpty()
     val vehicleSubtitle = uiState.carId
         .takeUnless { it.isBlank() || it == "default" }
         ?: primaryVehicle?.licensePlate.orEmpty()
@@ -58,7 +61,7 @@ fun HomeScreen(
             repository.setActiveCarId(activeCarId)
         }
 
-        val fetched = repository.fetchCurrentState()
+        val fetched = repository.fetchCurrentState(force = true)
         if (!fetched) {
             repository.resetSession(
                 activeCarId,
@@ -113,7 +116,13 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (hasVehicle) "System operational. Live monitoring is active." else "Add a vehicle to start monitoring.",
+                    text = if (hasVehicle) {
+                        if (isConnected) {
+                            "Backend status ${uiState.vehicleStatus.lowercase()}. Drive mode ${uiState.driveModeDisplay}."
+                        } else {
+                            "Waiting for backend telemetry."
+                        }
+                    } else "Add a vehicle to start monitoring.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
@@ -232,21 +241,58 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Car icon area
-                            Box(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(80.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(DarkSurfaceVariant),
-                                contentAlignment = Alignment.Center
+                                    .background(DarkSurfaceVariant)
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Default.DirectionsCar,
-                                    contentDescription = null,
-                                    tint = AccentCyan.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(48.dp)
-                                )
+                                Column {
+                                    Text(
+                                        "IGNITION",
+                                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                                        color = TextSecondary
+                                    )
+                                    Text(
+                                        if (uiState.ignitionOn) "ON" else "OFF",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (uiState.ignitionOn) AccentCyan else TextSecondary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        "ALERTS",
+                                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                                        color = TextSecondary
+                                    )
+                                    Text(
+                                        alerts.size.toString(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        "SERVICE",
+                                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                                        color = TextSecondary
+                                    )
+                                    Text(
+                                        when {
+                                            uiState.serviceBookingId.isNotBlank() -> "BOOKED"
+                                            uiState.serviceCenterName.isNotBlank() -> "READY"
+                                            else -> "NONE"
+                                        },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if (uiState.serviceBookingId.isNotBlank()) StatusGreen else TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -274,7 +320,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Live telemetry is flowing through the predictive maintenance model to forecast failures before breakdown.",
+                                    "Road ${uiState.roadCondition.uppercase()} • Obstacle ${"%.1f".format(uiState.forwardDistance)} m • Health ${uiState.healthScore}/100",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
@@ -320,8 +366,10 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Button(
                                     onClick = {
-                                        if (actionText.contains("Inspect Vehicle", ignoreCase = true)) {
-                                            onNavigateToVehicle()
+                                        when {
+                                            actionText.contains("Inspect Vehicle", ignoreCase = true) -> onNavigateToVehicle()
+                                            actionText.contains("Service", ignoreCase = true) -> onNavigateToAlerts()
+                                            actionText.contains("Booking", ignoreCase = true) -> onNavigateToAlerts()
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
