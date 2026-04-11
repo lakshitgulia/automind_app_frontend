@@ -72,7 +72,7 @@ class VehicleRepository(
         )
     }
 
-    suspend fun fetchCurrentState() {
+    suspend fun fetchCurrentState(): Boolean {
         try {
             val response = withContext(Dispatchers.IO) {
                 apiService.getState(System.currentTimeMillis(), _activeCarId)
@@ -80,16 +80,18 @@ class VehicleRepository(
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "fetchCurrentState success (carId=$_activeCarId)")
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "fetchCurrentState failed", e)
             _isConnected.value = false
             if (useMockFallback) {
                 applyMockState(jitter = true)
             }
+            return false
         }
     }
 
-    suspend fun resetSession(carId: String = _activeCarId, payload: Map<String, String> = emptyMap()) {
+    suspend fun resetSession(carId: String = _activeCarId, payload: Map<String, String> = emptyMap()): Boolean {
         try {
             val response = withContext(Dispatchers.IO) {
                 apiService.resetSession(carId, payload)
@@ -97,12 +99,14 @@ class VehicleRepository(
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "resetSession success: carId=$carId")
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "resetSession failed", e)
             _isConnected.value = false
             if (useMockFallback) {
                 applyMockState(jitter = true)
             }
+            return false
         }
     }
 
@@ -110,7 +114,7 @@ class VehicleRepository(
         actionType: String,
         value: Double = 0.0,
         reason: String = "Auto-run AI cycle"
-    ) {
+    ): Boolean {
         try {
             val response = withContext(Dispatchers.IO) {
                 apiService.executeStep(
@@ -125,12 +129,14 @@ class VehicleRepository(
             processBackendResponse(response)
             _isConnected.value = true
             Log.d(TAG, "executeAiCycle success: actionType=$actionType value=$value carId=$_activeCarId")
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "executeAiCycle failed", e)
             _isConnected.value = false
             if (useMockFallback) {
                 applyMockState(jitter = true)
             }
+            return false
         }
     }
 
@@ -202,11 +208,11 @@ class VehicleRepository(
             oilWarning = obs?.failures?.lowOil ?: current.oilWarning,
             batteryAlert = obs?.failures?.batteryIssue ?: current.batteryAlert,
             engineStatus = health?.engineStatus ?: current.engineStatus,
-            safetyScore = (safety?.drivingSafetyScore?.toDouble()?.div(100.0)) ?: met?.safetyScore ?: current.safetyScore,
+            safetyScore = (safety?.drivingSafetyScore?.let { if (it > 1.0) it / 100.0 else it }) ?: met?.safetyScore ?: current.safetyScore,
             efficiencyScore = met?.efficiencyScore ?: current.efficiencyScore,
             diagnosticConfidence = met?.diagnosisScore ?: current.diagnosticConfidence,
             decisionStability = met?.sequenceScore ?: current.decisionStability,
-            healthScore = health?.overallScore ?: inf?.healthScore ?: current.healthScore,
+            healthScore = (health?.overallScore ?: inf?.healthScore)?.let { if (it <= 1.0) (it * 100).toInt() else it.toInt() } ?: current.healthScore,
             collisionRisk = (safety?.collisionRiskPct?.toDouble()?.div(100.0)) ?: inf?.collisionRisk ?: current.collisionRisk,
             overrideDetected = inf?.overrideActive ?: current.overrideDetected,
             vehicleStatus = health?.status ?: inf?.outcome ?: current.vehicleStatus,

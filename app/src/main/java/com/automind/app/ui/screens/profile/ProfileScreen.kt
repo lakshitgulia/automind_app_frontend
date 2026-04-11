@@ -132,13 +132,16 @@ fun ProfileScreen(
                             vehiclePreferences.setPrimaryVehicle(vehicle.id)
                             vehicles = vehiclePreferences.getVehicles()
                             coroutineScope.launch {
-                                repository.resetSession(
-                                    vehicle.licensePlate,
-                                    mapOf(
-                                        "vehicle_name" to "${vehicle.make} ${vehicle.model} ${vehicle.year}",
-                                        "vehicle_maker" to vehicle.make
+                                val fetched = repository.fetchCurrentState()
+                                if (!fetched) {
+                                    repository.resetSession(
+                                        vehicle.licensePlate,
+                                        mapOf(
+                                            "vehicle_name" to "${vehicle.make} ${vehicle.model} ${vehicle.year}",
+                                            "vehicle_maker" to vehicle.make
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                 ) {
@@ -178,7 +181,16 @@ fun ProfileScreen(
                                             if (nextVehicle != null) {
                                                 repository.setActiveCarId(nextVehicle.licensePlate)
                                                 coroutineScope.launch {
-                                                    repository.resetSession(nextVehicle.licensePlate)
+                                                    val fetched = repository.fetchCurrentState()
+                                                    if (!fetched) {
+                                                        repository.resetSession(
+                                                            nextVehicle.licensePlate,
+                                                            mapOf(
+                                                                "vehicle_name" to "${nextVehicle.make} ${nextVehicle.model} ${nextVehicle.year}",
+                                                                "vehicle_maker" to nextVehicle.make
+                                                            )
+                                                        )
+                                                    }
                                                 }
                                             } else {
                                                 repository.setActiveCarId("default")

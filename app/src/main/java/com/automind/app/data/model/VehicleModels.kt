@@ -60,7 +60,7 @@ data class TripSummary(
 
 @JsonClass(generateAdapter = true)
 data class HealthSummary(
-    @Json(name = "overall_score") val overallScore: Int? = null,
+    @Json(name = "overall_score") val overallScore: Double? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "engine_health") val engineHealth: Int? = null,
     @Json(name = "battery_health") val batteryHealth: Int? = null,
@@ -101,8 +101,8 @@ data class PredictedHealth(
 
 @JsonClass(generateAdapter = true)
 data class SafetySummary(
-    @Json(name = "driving_safety_score") val drivingSafetyScore: Int? = null,
-    @Json(name = "collision_risk_pct") val collisionRiskPct: Int? = null,
+    @Json(name = "driving_safety_score") val drivingSafetyScore: Double? = null,
+    @Json(name = "collision_risk_pct") val collisionRiskPct: Double? = null,
     @Json(name = "distance_to_obstacle_m") val distanceToObstacleM: Double? = null
 )
 
@@ -209,7 +209,7 @@ data class StepInfo(
     @Json(name = "outcome") val outcome: String? = null,
     @Json(name = "collision_risk") val collisionRisk: Double? = null,
     @Json(name = "override_active") val overrideActive: Boolean? = null,
-    @Json(name = "health_score") val healthScore: Int? = null,
+    @Json(name = "health_score") val healthScore: Double? = null,
     @Json(name = "alerts") val alerts: List<String>? = null,
     @Json(name = "service_booking") val serviceBooking: ServiceBooking? = null,
     @Json(name = "ml_predictions") val mlPredictions: MlPredictions? = null,

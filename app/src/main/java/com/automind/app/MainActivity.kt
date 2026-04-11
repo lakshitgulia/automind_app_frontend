@@ -21,7 +21,6 @@ import com.automind.app.ui.navigation.AutoMindNavHost
 import com.automind.app.ui.navigation.Screen
 import com.automind.app.ui.theme.AutoMindTheme
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -40,7 +39,6 @@ class MainActivity : ComponentActivity() {
 
     // Simple manual DI for the hackathon
     private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
         .build()
 
     private val httpClient = OkHttpClient.Builder()
@@ -62,20 +60,31 @@ class MainActivity : ComponentActivity() {
     private lateinit var vehiclePreferences: VehiclePreferences
     private var pollingJob: Job? = null
 
+    private fun vehicleSeedPayload() = vehiclePreferences.getPrimaryVehicle()?.let { vehicle ->
+        mapOf(
+            "vehicle_name" to "${vehicle.make} ${vehicle.model} ${vehicle.year}",
+            "vehicle_maker" to vehicle.make
+        )
+    }.orEmpty()
+
     private fun startPolling() {
         if (pollingJob?.isActive == true) return
 
         pollingJob = lifecycleScope.launch(Dispatchers.IO) {
             while (isActive) {
                 if (vehiclePreferences.hasVehicles()) {
-                    if (repository.getActiveCarId() == "default") {
-                        val primary = vehiclePreferences.getPrimaryVehicle()
-                        if (primary != null) {
-                            repository.setActiveCarId(primary.licensePlate)
-                            repository.resetSession(primary.licensePlate)
+                    val primary = vehiclePreferences.getPrimaryVehicle()
+                    if (primary != null && repository.getActiveCarId() == "default") {
+                        repository.setActiveCarId(primary.licensePlate)
+                    }
+
+                    val fetched = repository.fetchCurrentState()
+                    if (!fetched) {
+                        val activeCarId = repository.getActiveCarId()
+                        if (activeCarId != "default") {
+                            repository.resetSession(activeCarId, vehicleSeedPayload())
                         }
                     }
-                    repository.fetchCurrentState()
                 }
                 delay(2000L)
             }

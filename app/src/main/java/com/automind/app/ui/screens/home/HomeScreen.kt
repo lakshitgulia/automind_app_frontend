@@ -40,8 +40,35 @@ fun HomeScreen(
     var vehicles by remember { mutableStateOf(vehiclePreferences.getVehicles()) }
     val primaryVehicle = vehicles.firstOrNull { it.isPrimary } ?: vehicles.firstOrNull()
     val hasVehicle = primaryVehicle != null
+    val backendVehicleTitle = uiState.vehicleDisplayName
+        .takeUnless { it.isBlank() || it == "Vehicle" }
+    val vehicleTitle = backendVehicleTitle ?: primaryVehicle?.let {
+        "${it.make} ${it.model} ${it.year}"
+    }.orEmpty()
+    val vehicleSubtitle = uiState.carId
+        .takeUnless { it.isBlank() || it == "default" }
+        ?: primaryVehicle?.licensePlate.orEmpty()
     var showAddVehicleDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(primaryVehicle?.id, primaryVehicle?.licensePlate) {
+        val selectedVehicle = primaryVehicle ?: return@LaunchedEffect
+        val activeCarId = selectedVehicle.licensePlate
+        if (repository.getActiveCarId() != activeCarId) {
+            repository.setActiveCarId(activeCarId)
+        }
+
+        val fetched = repository.fetchCurrentState()
+        if (!fetched) {
+            repository.resetSession(
+                activeCarId,
+                mapOf(
+                    "vehicle_name" to "${selectedVehicle.make} ${selectedVehicle.model} ${selectedVehicle.year}",
+                    "vehicle_maker" to selectedVehicle.make
+                )
+            )
+        }
+    }
 
     val greeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
         in 5..11 -> "Good Morning"
@@ -151,13 +178,13 @@ fun HomeScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "${primaryVehicle!!.make} ${primaryVehicle.model} ${primaryVehicle.year}",
+                                        text = vehicleTitle,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = TextPrimary,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = primaryVehicle.licensePlate,
+                                        text = vehicleSubtitle,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = AccentCyan
                                     )
