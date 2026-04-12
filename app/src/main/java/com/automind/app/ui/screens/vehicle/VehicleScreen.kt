@@ -249,14 +249,14 @@ fun VehicleScreen(repository: VehicleRepository, vehiclePreferences: VehiclePref
                         DiagnosticRow(
                             icon = Icons.Default.DirectionsCar,
                             title = "Brake System",
-                            subtitle = "Obstacle ${"%.1f".format(uiState.forwardDistance)} m • Collision ${(uiState.collisionRisk * 100).toInt()}%",
+                            subtitle = "Collision ${(uiState.collisionRisk * 100).toInt()}% • DTC ${uiState.dtcCount}",
                             status = if (uiState.brakeSystemStatus) "WARNING" else "NORMAL",
                             statusColor = if (uiState.brakeSystemStatus) StatusRed else StatusGreen
                         )
                         DiagnosticRow(
                             icon = Icons.Default.Sensors,
                             title = "Sensor Array",
-                            subtitle = "Road ${uiState.roadCondition.uppercase()} • Heading ${uiState.heading.toInt()}°",
+                            subtitle = "Heading ${uiState.heading.toInt()}° • MIL ${if (uiState.milActive) "ACTIVE" else "CLEAR"}",
                             status = if (uiState.sensorSystemStatus) "WARNING" else "NORMAL",
                             statusColor = if (uiState.sensorSystemStatus) StatusRed else StatusGreen
                         )

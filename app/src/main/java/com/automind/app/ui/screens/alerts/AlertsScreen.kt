@@ -1,4 +1,6 @@
 package com.automind.app.ui.screens.alerts
+import android.content.Context
+import android.location.Geocoder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,25 +70,41 @@ import com.automind.app.ui.theme.StatusOrange
 import com.automind.app.ui.theme.StatusRed
 import com.automind.app.ui.theme.TextPrimary
 import com.automind.app.ui.theme.TextSecondary
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertsScreen(repository: VehicleRepository) {
     val alerts by repository.alerts.collectAsState()
     val uiState by repository.uiState.collectAsState()
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showEditDialog by remember { mutableStateOf(false) }
     var requestedDate by remember { mutableStateOf("") }
     var requestedTime by remember { mutableStateOf("") }
     var serviceActionInFlight by remember { mutableStateOf(false) }
-    val liveVehicleLocation = remember(uiState.vehicleLat, uiState.vehicleLon) {
-        formatCoordinates(uiState.vehicleLat, uiState.vehicleLon)
+    var liveVehicleLocation by remember { mutableStateOf("Area unavailable") }
+    val locationLookupKey = remember(uiState.vehicleLat, uiState.vehicleLon) {
+        if (uiState.vehicleLat == 0.0 && uiState.vehicleLon == 0.0) {
+            null
+        } else {
+            "%.3f,%.3f".format(Locale.US, uiState.vehicleLat, uiState.vehicleLon)
+        }
     }
 
     LaunchedEffect(uiState.carId) {
         repository.fetchCurrentState(force = true)
+    }
+
+    LaunchedEffect(locationLookupKey) {
+        liveVehicleLocation = when {
+            locationLookupKey == null -> "Unavailable"
+            else -> reverseGeocodeArea(context, uiState.vehicleLat, uiState.vehicleLon)
+        }
     }
 
     LaunchedEffect(uiState.serviceScheduledDate, uiState.serviceScheduledTime, uiState.serviceRequestedDate, uiState.serviceRequestedTime) {
@@ -601,7 +620,22 @@ private fun EditServiceDialog(
     )
 }
 
-private fun formatCoordinates(latitude: Double, longitude: Double): String {
+private suspend fun reverseGeocodeArea(context: Context, latitude: Double, longitude: Double): String {
     if (latitude == 0.0 && longitude == 0.0) return "Unavailable"
-    return "${"%.5f".format(latitude)}, ${"%.5f".format(longitude)}"
+    if (!Geocoder.isPresent()) return "Area unavailable"
+
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            val address = Geocoder(context, Locale.getDefault())
+                .getFromLocation(latitude, longitude, 1)
+                ?.firstOrNull()
+
+            listOfNotNull(
+                address?.subLocality,
+                address?.locality,
+                address?.subAdminArea,
+                address?.adminArea
+            ).firstOrNull { it.isNotBlank() } ?: "Area unavailable"
+        }.getOrDefault("Area unavailable")
+    }
 }

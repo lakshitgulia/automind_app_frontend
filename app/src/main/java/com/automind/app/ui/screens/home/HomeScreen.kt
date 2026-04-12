@@ -320,7 +320,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "Road ${uiState.roadCondition.uppercase()} • Obstacle ${"%.1f".format(uiState.forwardDistance)} m • Health ${uiState.healthScore}/100",
+                                    "Health ${uiState.healthScore}/100 • Engine ${uiState.engineStatus.uppercase()} • Phase ${uiState.currentFaultPhase.uppercase()}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
